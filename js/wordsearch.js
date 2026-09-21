@@ -8,34 +8,88 @@
   'use strict';
 
   const el = SG.el;
-  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const svg = SG.svg;
 
   const RIGHT = [0, 1], DOWN = [1, 0], DOWN_RIGHT = [1, 1], UP_RIGHT = [-1, 1];
   const FORWARD = [RIGHT, DOWN, DOWN_RIGHT, UP_RIGHT];
   const BACKWARD = FORWARD.map(function (d) { return [0 - d[0], 0 - d[1]]; });
 
   const LEVELS = {
-    easy: { label: 'Easy', detail: 'Small grid, 6 words', size: 8, count: 6, dirs: [RIGHT, DOWN] },
-    medium: { label: 'Medium', detail: 'Bigger grid, 8 words, some diagonal', size: 10, count: 8, dirs: FORWARD },
-    hard: { label: 'Hard', detail: 'Large grid, 10 words, some backwards', size: 12, count: 10, dirs: FORWARD.concat(BACKWARD) }
+    easy: { size: 8, count: 6, dirs: [RIGHT, DOWN] },
+    medium: { size: 10, count: 8, dirs: FORWARD },
+    hard: { size: 12, count: 10, dirs: FORWARD.concat(BACKWARD) }
   };
 
-  // Highlighter colours - all light enough to keep dark letters easy to read.
-  const MARK_COLORS = ['#FFD54F', '#A5D6A7', '#90CAF9', '#F8A5C2', '#FFB74D',
-    '#CE93D8', '#80CBC4', '#DCE775', '#BCAAA4', '#9FA8DA'];
-  const PREVIEW_COLOR = '#1D4E89';
+  // Highlighter colours. The fill is light enough to keep dark letters easy to read (all 6.9:1
+  // or better); the darker edge makes each band visible against the white grid without relying
+  // on a pale colour alone (every edge is 4.7:1 or better on white).
+  const MARKS = [
+    { fill: '#FFD54F', edge: '#946C00' }, { fill: '#A5D6A7', edge: '#2F7D38' },
+    { fill: '#90CAF9', edge: '#1F6FB5' }, { fill: '#F8A5C2', edge: '#B83A70' },
+    { fill: '#FFB74D', edge: '#A85F00' }, { fill: '#CE93D8', edge: '#8A3D9C' },
+    { fill: '#80CBC4', edge: '#1F7A71' }, { fill: '#DCE775', edge: '#6F7700' },
+    { fill: '#BCAAA4', edge: '#75615A' }, { fill: '#9FA8DA', edge: '#4A58AD' }
+  ];
+  const SELECT_FILL = '#CFE0F5';
+  const SELECT_EDGE = '#1D4E89';
 
   // Filler letters, weighted towards common ones so the grid looks natural.
   const FILL = 'AAAABBCCDDDEEEEEFFGGHHHIIIJKLLLMMNNNOOOOPPRRRSSSTTTUUVWXYZ';
+  const HINDI_CONSONANTS = 'कखगघचछजझटठडढणतथदधनपफबभमयरलवशषसह';
+  const HINDI_MATRAS = ['ा', 'ा', 'ि', 'ी', 'ु', 'ू', 'े', 'े', 'ै', 'ो', 'ौ', 'ं'];
 
-  const MIN_WORD = 4;
+  // Devanagari is not one-letter-per-character: a grid square holds one AKSHARA - a consonant (or
+  // a conjunct such as श्त or द्र) together with its vowel sign and marks. रिश्तेदार -> रि | श्ते | दा | र.
+  // Done by hand rather than with Intl.Segmenter, which older tablets lack or get wrong for conjuncts.
+  function isMark(code) {
+    return (code >= 0x0900 && code <= 0x0903) || (code >= 0x093A && code <= 0x093C) ||
+      (code >= 0x093E && code <= 0x094F) || (code >= 0x0951 && code <= 0x0957) ||
+      code === 0x0962 || code === 0x0963 || code === 0x200C || code === 0x200D;
+  }
+
+  function splitAksharas(text) {
+    const out = [];
+    Array.from(text.normalize('NFC')).forEach(function (ch) {
+      const last = out.length ? out[out.length - 1] : '';
+      const joins = /\u094D[\u200C\u200D]?$/.test(last); // a halant (्) glues the next consonant on
+      if (out.length && (isMark(ch.codePointAt(0)) || joins)) out[out.length - 1] = last + ch;
+      else out.push(ch);
+    });
+    return out;
+  }
+
+  // What differs between languages. `minCell` is the smallest square (px) that keeps its letter
+  // above the 19px reading floor; aksharas are wider than Latin capitals, so they need more room.
+  const SCRIPTS = {
+    en: {
+      minWord: 4, minCell: 34,
+      split: function (text) { return text.split(''); },
+      letterScale: function (cell) { return cell < 40 ? 0.62 : 0.58; },
+      filler: function () { return FILL[SG.rand(FILL.length)]; }
+    },
+    hi: {
+      minWord: 3, minCell: 42,
+      split: splitAksharas,
+      letterScale: function () { return 0.48; },
+      filler: function () {
+        const consonant = HINDI_CONSONANTS[SG.rand(HINDI_CONSONANTS.length)];
+        return SG.rand(2) ? consonant : consonant + HINDI_MATRAS[SG.rand(HINDI_MATRAS.length)];
+      }
+    }
+  };
+
+  const MAX_CELL = 76;
+  const WIN_PAUSE_MS = 2200; // time to enjoy the last highlight before the finish screen
   const SIDE_BY_SIDE = '(min-width: 820px) and (orientation: landscape)'; // keep in step with style.css
+  const SIDE_WIDTH = 340 + 28; // side panel + column gap, as in style.css
 
   let lastTheme = null;
 
   // ---------- Puzzle building ----------
 
-  function place(grid, word, dirs) {
+  // `text` is what the word list shows; `letters` is what goes in the squares, one each.
+  function place(grid, text, letters, dirs) {
+    const word = letters;
     const n = grid.length;
     for (let attempt = 0; attempt < 150; attempt++) {
       const d = dirs[SG.rand(dirs.length)];
@@ -56,38 +110,43 @@
         grid[r][c] = word[i];
         cells.push({ r: r, c: c });
       }
-      return { word: word, dir: d, cells: cells, found: false };
+      return { word: text, letters: letters, dir: d, cells: cells, found: false, mark: null };
     }
     return null;
   }
 
-  function buildPuzzle(level) {
-    const n = level.size;
-    for (let attempt = 0; attempt < 40; attempt++) {
-      const choices = SG.themes.filter(function (t) { return t.name !== lastTheme; });
+  function key(letters) {
+    return '|' + letters.join('|') + '|';
+  }
+
+  function buildPuzzle(level, n, count, script, themes) {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const choices = themes.filter(function (t) { return t.name !== lastTheme; });
       const theme = choices[SG.rand(choices.length)];
       const grid = [];
       for (let r = 0; r < n; r++) grid.push(new Array(n).fill(''));
 
-      const pool = SG.shuffle(theme.words.filter(function (w) {
-        return w.length >= MIN_WORD && w.length <= n;
+      const pool = SG.shuffle(theme.words.map(function (text) {
+        return { text: text, letters: script.split(text) };
+      }).filter(function (w) {
+        return w.letters.length >= script.minWord && w.letters.length <= n;
       }));
       const placements = [];
-      for (let i = 0; i < pool.length && placements.length < level.count; i++) {
+      for (let i = 0; i < pool.length && placements.length < count; i++) {
         const word = pool[i];
         // Skip words hiding inside each other (RAIN / RAINBOW) - finding one would be ambiguous.
         const overlaps = placements.some(function (p) {
-          return p.word.indexOf(word) !== -1 || word.indexOf(p.word) !== -1;
+          return key(p.letters).indexOf(key(word.letters)) !== -1 || key(word.letters).indexOf(key(p.letters)) !== -1;
         });
         if (overlaps) continue;
-        const placed = place(grid, word, level.dirs);
+        const placed = place(grid, word.text, word.letters, level.dirs);
         if (placed) placements.push(placed);
       }
-      if (placements.length < level.count) continue;
+      if (placements.length < count) continue;
 
       for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
-          if (!grid[r][c]) grid[r][c] = FILL[SG.rand(FILL.length)];
+          if (!grid[r][c]) grid[r][c] = script.filler();
         }
       }
       placements.sort(function (a, b) { return a.word < b.word ? -1 : 1; });
@@ -97,11 +156,38 @@
     throw new Error('Could not build a word search puzzle');
   }
 
+  function wordChip(p) {
+    // The marker slot is always there, and a found word only changes colour and gains a tick
+    // inside it - so a chip never changes size, the list never re-wraps, and the grid never moves.
+    const chip = el('li', { class: 'ws-word' + (p.found ? ' found' : '') }, [
+      el('span', { class: 'ws-word-mark', 'aria-hidden': 'true' }),
+      el('span', { class: 'ws-word-text', text: p.word }),
+      el('span', { class: 'sr-only ws-found-note', text: p.found ? SG.t('ws.foundNote') : '' })
+    ]);
+    if (p.mark) paint(chip, p.mark);
+    return chip;
+  }
+
+  function paint(chip, mark) {
+    chip.style.setProperty('--mark', mark.fill);
+    chip.style.setProperty('--mark-edge', mark.edge);
+  }
+
   // ---------- The game ----------
 
-  function mount(stage, levelKey) {
+  function mount(stage, levelKey, hooks) {
     const level = LEVELS[levelKey];
-    const n = level.size;
+    const t = SG.t;
+    const script = SCRIPTS[SG.lang] || SCRIPTS.en;
+    const themes = SG.themes[SG.lang] || SG.themes.en;
+    const MIN_CELL = script.minCell; // px. Below this, letters drop under the 19px reading floor.
+    hooks = hooks || {};
+
+    // On a narrow phone a 12 x 12 grid would make the letters too small to read, so the grid is
+    // capped to what fits at a readable size (and carries a couple fewer words to match).
+    const fits = stage.clientWidth > 0 ? Math.floor((stage.clientWidth - 6) / MIN_CELL) : level.size;
+    const n = SG.clamp(fits, 8, level.size);
+    const wordCount = Math.min(level.count, n - 2);
 
     // Selections snap to the directions this level uses (either way round).
     const snapDirs = [];
@@ -114,10 +200,11 @@
 
     let puzzle, done, foundCount;
     let anchor;            // first letter chosen by a tap, waiting for the last letter
+    let hinted;            // the word currently being hinted, if any
     let pointerId, downCell, downX, downY;
     let cursor, usingKeys; // keyboard play
     let timers = [];
-    let wrap, board, hintBtn, foundLayer, preview, hintRing, statusEl, cellEls, wordEls;
+    let layoutEl, wrap, board, foot, foundLayer, preview, previewLines, hintRing, statusEl, cellEls, wordEls;
 
     function later(fn, ms) {
       const id = setTimeout(fn, ms);
@@ -136,12 +223,6 @@
 
     // ----- Rendering -----
 
-    function svg(tag, attrs) {
-      const node = document.createElementNS(SVG_NS, tag);
-      Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
-      return node;
-    }
-
     function setLine(line, a, b) {
       line.setAttribute('x1', a.c + 0.5);
       line.setAttribute('y1', a.r + 0.5);
@@ -150,47 +231,53 @@
       line.setAttribute('y2', b.r + 0.5);
     }
 
+    // A highlighter band: a darker outline with the colour on top.
+    function band(edge, fill, edgeWidth, fillWidth) {
+      return [
+        svg('line', { stroke: edge, 'stroke-width': edgeWidth, 'stroke-linecap': 'round' }),
+        svg('line', { stroke: fill, 'stroke-width': fillWidth, 'stroke-linecap': 'round' })
+      ];
+    }
+
     function render() {
       stage.textContent = '';
 
       wordEls = {};
       const list = el('ul', { class: 'ws-words' }, puzzle.placements.map(function (p) {
-        // A found word is struck through and filled with its highlighter colour. Its size never
-        // changes, so the word list cannot re-wrap and nudge the grid while someone is playing.
-        const item = el('li', { class: 'ws-word' }, [
-          el('span', { class: 'ws-word-text', text: p.word }),
-          el('span', { class: 'sr-only ws-found-note', text: '' })
-        ]);
-        wordEls[p.word] = item;
-        return item;
+        wordEls[p.word] = wordChip(p);
+        return wordEls[p.word];
       }));
 
-      const info = el('section', { class: 'ws-info', 'aria-label': 'Words to find' }, [
-        el('p', { class: 'ws-topic' }, ['Topic: ', el('strong', { text: puzzle.theme })]),
+      const info = el('section', { class: 'ws-info', 'aria-label': t('ws.list') }, [
+        el('p', { class: 'ws-topic' }, [t('ws.topic') + ': ', el('strong', { text: puzzle.theme })]),
         list
       ]);
 
-      const marks = svg('svg', { class: 'ws-marks', viewBox: '0 0 ' + n + ' ' + n, 'aria-hidden': 'true' });
       foundLayer = svg('g', {});
-      preview = svg('line', { class: 'ws-preview', stroke: PREVIEW_COLOR, 'stroke-width': 0.8, 'stroke-linecap': 'round' });
-      hintRing = svg('circle', { class: 'ws-hint-ring', r: 0.44, fill: 'none', stroke: PREVIEW_COLOR, 'stroke-width': 0.09 });
+      previewLines = band(SELECT_EDGE, SELECT_FILL, 0.86, 0.74);
+      preview = svg('g', { class: 'ws-preview' }, previewLines);
+      // The hint ring is dashed (a shape cue, not just a colour) with a white halo so it
+      // still shows when it lands on top of a highlighted word.
+      hintRing = svg('g', { class: 'ws-hint-ring' }, [
+        svg('circle', { r: 0.44, fill: 'none', stroke: '#FFFFFF', 'stroke-width': 0.17 }),
+        svg('circle', { r: 0.44, fill: 'none', stroke: SELECT_EDGE, 'stroke-width': 0.11, 'stroke-dasharray': '.18 .12' })
+      ]);
       preview.style.display = 'none';
       hintRing.style.display = 'none';
-      marks.appendChild(foundLayer);
-      marks.appendChild(preview);
-      marks.appendChild(hintRing);
+      const marks = svg('svg', { class: 'ws-marks', viewBox: '0 0 ' + n + ' ' + n, 'aria-hidden': 'true' },
+        [foundLayer, preview, hintRing]);
 
       board = el('div', {
         class: 'ws-board',
         tabindex: '0',
         role: 'application',
-        'aria-label': 'Letter grid. Arrow keys move. Press Enter on the first letter of a word, then on its last letter.'
+        'aria-label': t('ws.grid')
       }, [marks]);
       board.style.setProperty('--n', n);
 
       cellEls = [];
-      puzzle.grid.forEach(function (row, r) {
-        cellEls.push(row.map(function (letter, c) {
+      puzzle.grid.forEach(function (row) {
+        cellEls.push(row.map(function (letter) {
           const cell = el('div', { class: 'ws-cell', 'aria-hidden': 'true', text: letter });
           board.appendChild(cell);
           return cell;
@@ -205,41 +292,53 @@
       // Reaching the grid with the Tab key starts keyboard play; a touch or click does not.
       board.addEventListener('focus', function () { if (pointerId === null) showCursor(true); });
       board.addEventListener('blur', function () { showCursor(false); });
-      board.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
       wrap = el('div', { class: 'ws-board-wrap' }, [board]);
 
-      statusEl = el('p', { class: 'ws-status', role: 'status' });
-      hintBtn = el('button', { class: 'btn btn-secondary', type: 'button', text: 'Show a Hint', onclick: hint });
-      const foot = el('section', { class: 'ws-foot' }, [
+      // The status line always reserves two lines, so a longer message never pushes the Hint button.
+      statusEl = el('p', { class: 'status ws-status', role: 'status' });
+      const hintBtn = el('button', { class: 'btn btn-secondary ws-hint', type: 'button', text: t('ws.hint') });
+      SG.onTap(hintBtn, hint);
+      foot = el('section', { class: 'ws-foot' }, [
         statusEl,
         hintBtn,
-        el('p', { class: 'ws-tip', text: 'Slide along a word, or tap its first letter and then its last letter.' })
+        el('p', { class: 'ws-tip', text: t('ws.tip') })
       ]);
 
-      stage.appendChild(el('div', { class: 'ws-layout' }, [info, wrap, foot]));
-      showProgress();
+      layoutEl = el('div', { class: 'ws-layout' }, [info, wrap, foot]);
+      stage.appendChild(layoutEl);
+      restStatus();
     }
 
-    // Make the grid as big as the screen allows, and keep it fully visible without scrolling when possible.
+    // Make the grid as big as the screen allows. Readable letters come first; keeping the Hint
+    // button on screen comes second (on a small phone it may sit just below the fold).
     function layout() {
       if (!board || done) return;
+      const sideBySide = window.matchMedia(SIDE_BY_SIDE).matches;
       const top = wrap.getBoundingClientRect().top + window.pageYOffset;
-      // When the hint row sits below the grid, leave room for it. The grid swallows touches
+      // When the hint row sits below the grid, leave room for it: the grid swallows touches
       // (so a word is never interrupted by scrolling), which makes scrolling past it awkward.
-      const stacked = !window.matchMedia(SIDE_BY_SIDE).matches;
-      const reserve = stacked ? Math.max(statusEl.offsetHeight, hintBtn.offsetHeight) + 28 : 0;
+      const reserve = sideBySide ? 0 : foot.offsetHeight + 16;
       const border = board.offsetWidth - board.clientWidth;
-      const availW = wrap.clientWidth - border;
+      const availW = layoutEl.clientWidth - (sideBySide ? SIDE_WIDTH : 0) - border;
       const availH = window.innerHeight - top - reserve - 20 - border;
-      const size = Math.floor(Math.min(availW, Math.max(280, Math.min(availH, n * 76))));
+      const size = Math.floor(Math.max(
+        Math.min(availW, n * MIN_CELL),
+        Math.min(availW, availH, n * MAX_CELL)
+      ));
+      const cell = size / n;
       board.style.width = size + 'px';
       board.style.height = size + 'px';
-      board.style.setProperty('--cell', (size / n) + 'px');
+      board.style.setProperty('--letter', (cell * script.letterScale(cell)) + 'px');
     }
 
-    function showProgress() {
-      statusEl.textContent = 'Found ' + foundCount + ' of ' + puzzle.placements.length + ' words';
+    // What the status line says when nothing has just happened.
+    function restStatus() {
+      if (hinted && !hinted.found) {
+        statusEl.textContent = t('ws.lookFor', hinted.word);
+      } else {
+        statusEl.textContent = t('ws.found', foundCount, puzzle.placements.length);
+      }
     }
 
     // ----- Choosing letters -----
@@ -278,7 +377,7 @@
     function showPreview(cells) {
       preview.classList.remove('fading');
       preview.style.display = '';
-      setLine(preview, cells[0], cells[cells.length - 1]);
+      previewLines.forEach(function (line) { setLine(line, cells[0], cells[cells.length - 1]); });
     }
 
     function hidePreview() {
@@ -293,44 +392,65 @@
       return p.dir[0] !== 0 ? dr / p.dir[0] : dc / p.dir[1];
     }
 
-    function findMatch(cells) {
-      if (cells.length < 2) return null;
-      const a = cells[0], b = cells[cells.length - 1];
-
-      // Either direction counts, and the ends may be one letter out in total.
-      let best = null, bestError = 2;
-      puzzle.placements.forEach(function (p) {
-        if (p.found) return;
-        const ta = along(p, a), tb = along(p, b);
-        if (ta === null || tb === null) return;
-        const error = Math.abs(Math.min(ta, tb)) + Math.abs(Math.max(ta, tb) - (p.cells.length - 1));
-        if (error < bestError) { bestError = error; best = p; }
-      });
-      if (best) return best;
-
-      // The filler letters can spell a listed word by chance - accept that too.
-      const text = cells.map(function (cell) { return puzzle.grid[cell.r][cell.c]; }).join('');
-      const reversed = text.split('').reverse().join('');
-      for (let i = 0; i < puzzle.placements.length; i++) {
-        const p = puzzle.placements[i];
-        if (!p.found && (p.word === text || p.word === reversed)) {
-          p.cells = cells;
-          return p;
-        }
-      }
-      return null;
+    function gap(a, b) {
+      return Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
     }
 
-    function attempt(cells) {
+    // `cells` is the snapped line; `target` is the letter the player actually ended on.
+    function findMatch(cells, target) {
+      const a = cells[0], b = cells[cells.length - 1];
+      const unfound = puzzle.placements.filter(function (p) { return !p.found; });
+
+      // 1. On the word's own line: either direction counts, and the ends may be one letter out in total.
+      if (cells.length > 1) {
+        let best = null, bestError = 2;
+        unfound.forEach(function (p) {
+          const ta = along(p, a), tb = along(p, b);
+          if (ta === null || tb === null) return;
+          const error = Math.abs(Math.min(ta, tb)) + Math.abs(Math.max(ta, tb) - (p.cells.length - 1));
+          if (error < bestError) { bestError = error; best = p; }
+        });
+        if (best) return best;
+
+        // 2. The filler letters can spell a listed word by chance - accept that too.
+        const picked = cells.map(function (cell) { return puzzle.grid[cell.r][cell.c]; });
+        const text = key(picked);
+        const reversed = key(picked.slice().reverse());
+        for (let i = 0; i < unfound.length; i++) {
+          if (key(unfound[i].letters) === text || key(unfound[i].letters) === reversed) {
+            unfound[i].cells = cells;
+            return unfound[i];
+          }
+        }
+      }
+
+      // 3. A sideways slip: each end landed on a letter touching the word's real end.
+      //    If two words could be meant, it is not counted (better to ask again than guess wrong).
+      let nearest = null, nearestGap = Infinity, tie = false;
+      unfound.forEach(function (p) {
+        const first = p.cells[0], last = p.cells[p.cells.length - 1];
+        [[first, last], [last, first]].forEach(function (ends) {
+          const g1 = gap(a, ends[0]), g2 = gap(target, ends[1]);
+          if (g1 > 1 || g2 > 1) return;
+          if (g1 + g2 < nearestGap) { nearestGap = g1 + g2; nearest = p; tie = false; }
+          else if (g1 + g2 === nearestGap && nearest !== p) tie = true;
+        });
+      });
+      return tie ? null : nearest;
+    }
+
+    function attempt(start, target) {
+      const cells = snapLine(start, target);
       anchor = null;
-      const match = findMatch(cells);
+      const match = findMatch(cells, target);
       if (match) {
         hidePreview();
-        markFound(match);
+        markFound(match, start);
       } else {
-        // Not a word: the selection simply fades away. No buzzer, no red.
+        // Not a word: the selection simply fades away. No buzzer, no red, no "wrong".
         showPreview(cells);
         preview.classList.add('fading');
+        restStatus();
       }
     }
 
@@ -339,71 +459,86 @@
       if (!anchor) {
         anchor = cell;
         showPreview([cell]);
+        statusEl.textContent = t('ws.first', puzzle.grid[cell.r][cell.c]);
         SG.sound.tap();
       } else if (same(anchor, cell)) {
         anchor = null;
         hidePreview();
+        restStatus();
       } else {
-        attempt(snapLine(anchor, cell));
+        attempt(anchor, cell);
       }
     }
 
-    function markFound(p) {
+    function markFound(p, from) {
       p.found = true;
-      const color = MARK_COLORS[foundCount % MARK_COLORS.length];
+      p.mark = MARKS[foundCount % MARKS.length];
       foundCount++;
 
-      const line = svg('line', { class: 'ws-found-mark', stroke: color, 'stroke-width': 0.8, 'stroke-linecap': 'round' });
-      setLine(line, p.cells[0], p.cells[p.cells.length - 1]);
-      foundLayer.appendChild(line);
+      // Draw the highlighter on from the end the player started at.
+      let a = p.cells[0], b = p.cells[p.cells.length - 1];
+      if (gap(from, b) < gap(from, a)) { const t = a; a = b; b = t; }
+      const length = Math.hypot(b.r - a.r, b.c - a.c);
+      band(p.mark.edge, p.mark.fill, 0.84, 0.76).forEach(function (line) {
+        setLine(line, a, b);
+        line.style.strokeDasharray = length + ' ' + length;
+        line.style.strokeDashoffset = length;
+        foundLayer.appendChild(line);
+        line.getBoundingClientRect(); // commit the starting state so the next line animates
+        line.style.transition = 'stroke-dashoffset 0.3s ease-out';
+        line.style.strokeDashoffset = 0;
+      });
 
-      const item = wordEls[p.word];
-      item.classList.add('found');
-      item.classList.remove('hinting');
-      item.style.setProperty('--mark', color);
-      item.querySelector('.ws-found-note').textContent = ' (found)';
-      hintRing.style.display = 'none';
+      const chip = wordEls[p.word];
+      chip.classList.add('found');
+      chip.classList.remove('hinting');
+      paint(chip, p.mark);
+      chip.querySelector('.ws-found-note').textContent = t('ws.foundNote');
+      if (hinted === p) {
+        hinted = null;
+        hintRing.style.display = 'none';
+      }
 
       const left = puzzle.placements.length - foundCount;
       if (left === 0) {
         done = true;
-        statusEl.textContent = 'You found ' + p.word + '. That is all of them!';
+        statusEl.textContent = t('ws.foundLast', p.word);
         SG.sound.win();
-        later(showWin, 1500);
+        later(showWin, WIN_PAUSE_MS);
       } else {
-        statusEl.textContent = 'You found ' + p.word + '! ' + left + (left === 1 ? ' word' : ' words') + ' to go.';
+        statusEl.textContent = t('ws.foundWord', p.word, left);
         SG.sound.found();
       }
     }
 
     function showWin() {
+      const trophies = el('ul', { class: 'ws-words panel-trophies', 'aria-label': t('ws.trophies') },
+        puzzle.placements.map(wordChip));
       const panel = SG.winPanel(
-        'You found all ' + puzzle.placements.length + ' words in the ' + puzzle.theme + ' puzzle.',
-        newGame,
-        '#/wordsearch'
+        t('ws.win', puzzle.placements.length, puzzle.theme),
+        trophies, newGame, '#/wordsearch'
       );
       stage.textContent = '';
       board = null;
       stage.appendChild(panel);
-      panel.querySelector('.win-title').focus();
+      if (hooks.onWin) hooks.onWin();
+      panel.querySelector('.panel-title').focus();
     }
 
+    // The hint stays until its word is found (or another hint is asked for).
+    // Nothing on screen ever changes on a timer.
     function hint() {
       if (done) return;
       const p = puzzle.placements.filter(function (x) { return !x.found; })[0];
       if (!p) return;
-      const first = p.cells[0];
-      hintRing.setAttribute('cx', first.c + 0.5);
-      hintRing.setAttribute('cy', first.r + 0.5);
+      if (hinted) wordEls[hinted.word].classList.remove('hinting');
+      hinted = p;
+      hintRing.setAttribute('transform', 'translate(' + (p.cells[0].c + 0.5) + ' ' + (p.cells[0].r + 0.5) + ')');
+      hintRing.style.display = 'none';
+      hintRing.getBoundingClientRect(); // restart the three gentle pulses if asked again
       hintRing.style.display = '';
       wordEls[p.word].classList.add('hinting');
-      statusEl.textContent = 'Look for ' + p.word + '. Its first letter is circled.';
-      later(function () {
-        if (p.found || done) return;
-        hintRing.style.display = 'none';
-        wordEls[p.word].classList.remove('hinting');
-        showProgress();
-      }, 6000);
+      restStatus();
     }
 
     // ----- Touch, mouse and pen -----
@@ -443,7 +578,7 @@
       const wobble = Math.hypot(e.clientX - downX, e.clientY - downY);
       const upCell = wobble < (board.clientWidth / n) * 0.5 ? downCell : cellAt(e);
       if (anchor || same(upCell, downCell)) tap(upCell);
-      else attempt(snapLine(downCell, upCell));
+      else attempt(downCell, upCell);
     }
 
     function onCancel(e) {
@@ -484,6 +619,7 @@
       } else if (e.key === 'Escape' && anchor) {
         anchor = null;
         hidePreview();
+        restStatus();
       }
     }
 
@@ -491,15 +627,17 @@
 
     function newGame() {
       clearTimers();
-      puzzle = buildPuzzle(level);
+      puzzle = buildPuzzle(level, n, wordCount, script, themes);
       done = false;
       foundCount = 0;
       anchor = null;
+      hinted = null;
       pointerId = null;
       cursor = { r: 0, c: 0 };
       usingKeys = false;
       render();
       layout();
+      if (hooks.onStart) hooks.onStart();
     }
 
     window.addEventListener('resize', layout);
@@ -507,6 +645,11 @@
 
     return {
       newGame: newGame,
+      resize: layout,
+      // Shown on the "start a new puzzle?" page, so a stray tap cannot wipe out a long game.
+      progress: function () {
+        return done || !foundCount ? null : t('ws.progress', foundCount, puzzle.placements.length);
+      },
       destroy: function () {
         clearTimers();
         window.removeEventListener('resize', layout);
@@ -514,5 +657,10 @@
     };
   }
 
-  SG.wordsearch = { levels: LEVELS, mount: mount };
+  SG.wordsearch = {
+    levels: LEVELS,
+    mount: mount,
+    detail: function (levelKey) { return SG.t('ws.level.' + levelKey); },
+    split: function (text) { return (SCRIPTS[SG.lang] || SCRIPTS.en).split(text); }
+  };
 })(window.SG);

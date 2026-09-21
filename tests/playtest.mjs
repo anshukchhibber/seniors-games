@@ -149,13 +149,14 @@ const SOLVE = `(() => {
   const out = [];
   for (const w of words) {
     let hit = null;
+    const L = SG.wordsearch.split(w);
     for (let r = 0; r < n && !hit; r++) for (let c = 0; c < n && !hit; c++) for (const d of dirs) {
       let ok = true;
-      for (let i = 0; i < w.length; i++) {
+      for (let i = 0; i < L.length; i++) {
         const rr = r + d[0] * i, cc = c + d[1] * i;
-        if (rr < 0 || cc < 0 || rr >= n || cc >= n || grid[rr][cc] !== w[i]) { ok = false; break; }
+        if (rr < 0 || cc < 0 || rr >= n || cc >= n || grid[rr][cc] !== L[i]) { ok = false; break; }
       }
-      if (ok) { hit = { word: w, dir: d, len: w.length, start: at(r, c), end: at(r + d[0] * (w.length - 1), c + d[1] * (w.length - 1)), cell }; break; }
+      if (ok) { hit = { word: w, dir: d, len: L.length, start: at(r, c), end: at(r + d[0] * (L.length - 1), c + d[1] * (L.length - 1)), cell }; break; }
     }
     out.push(hit || { word: w, missing: true });
   }
@@ -173,8 +174,11 @@ try {
   // ---------- Desktop ----------
   await viewport(1280, 800, false);
   await go('#/');
+  await js(`localStorage.clear()`);
+  await go('#/');
   await shot('01-home-desktop');
-  check('home shows two games', (await js(`document.querySelectorAll('.game-card').length`)) === 2);
+  check('home shows three games', (await js(`document.querySelectorAll('.game-card').length`)) === 3);
+  check('home offers English and Hindi, each in its own script', await js(`['English', 'हिंदी'].every(name => [...document.querySelectorAll('.chooser button')].some(b => b.textContent === name))`));
 
   await go('#/wordsearch');
   await shot('02-levels-desktop');
@@ -200,10 +204,11 @@ try {
       await sleep(40);
       const n = await foundCount();
       check(`${levelKey}: found ${w.word} (technique ${mode})`, n === i, `found=${n}`);
-      if (levelKey === 'medium' && i === 4) await shot('04-ws-medium-midgame');
+      if (levelKey === 'medium' && i === 4) { await sleep(400); await shot('04-ws-medium-midgame'); }
     }
-    await sleep(1800);
-    check(`${levelKey}: finish screen appears`, await js(`!!document.querySelector('.win')`));
+    await sleep(2700);
+    check(`${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`));
+    check(`${levelKey}: finish screen lists the found words and hides "New Puzzle"`, await js(`document.querySelectorAll('.panel-trophies .ws-word.found').length === ${s.words.length} && getComputedStyle(document.querySelector('.bar > button')).visibility === 'hidden'`));
     if (levelKey === 'easy') await shot('05-ws-win');
   }
 
@@ -218,12 +223,43 @@ try {
     await drag(w0.start.x, w0.start.y, w0.start.x + sx, w0.start.y + sy);
   }
   check('a non-word selection finds nothing', (await foundCount()) === 0);
-  await click(w0.start.x, w0.start.y); await click(w0.start.x, w0.start.y);
-  check('tapping the same letter twice cancels', (await js(`getComputedStyle(document.querySelector('.ws-preview')).display`)) === 'none');
-  await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Show a Hint').click()`);
+  const hintTop = () => js(`Math.round(document.querySelector('.ws-hint').getBoundingClientRect().top)`);
+  const status = () => js(`document.querySelector('.status').textContent`);
+  const hintTop0 = await hintTop();
+  await click(w0.start.x, w0.start.y);
+  check('tapping a first letter says so in words', (await status()).startsWith('First letter: ' + w0.word[0] + '.'), await status());
+  check('the chosen first letter is clearly drawn (opaque, outlined)', await js(`getComputedStyle(document.querySelector('.ws-preview')).opacity === '1' && document.querySelectorAll('.ws-preview line').length === 2`));
+  await shot('06a-ws-first-letter');
+  await click(w0.start.x, w0.start.y);
+  check('tapping the same letter twice cancels', (await js(`getComputedStyle(document.querySelector('.ws-preview')).display`)) === 'none' && (await status()).startsWith('Found 0 of'));
+  await js(`document.querySelector('.ws-hint').click()`);
   check('hint circles a letter', (await js(`document.querySelector('.ws-hint-ring').style.display`)) === '');
-  check('hint names the word', (await js(`document.querySelector('.ws-status').textContent`)).startsWith('Look for '));
+  check('hint names the word', (await status()).startsWith('Look for '));
   await shot('06-ws-hint');
+  await sleep(6500);
+  check('the hint never times out by itself', (await js(`document.querySelector('.ws-hint-ring').style.display`)) === '' && (await status()).startsWith('Look for '));
+  { // sideways slip: start one letter to the side of the real first letter, end on the real last letter
+    const w = s.words[1];
+    const towardsMiddle = (pos, far) => (pos > far ? -s.cell : s.cell);
+    const side = w.dir[1] === 0
+      ? { x: towardsMiddle(w.start.x, s.boardRight - s.cell * s.n / 2), y: 0 }
+      : { x: 0, y: towardsMiddle(w.start.y, s.boardBottom - s.cell * s.n / 2) };
+    await click(w.start.x + side.x, w.start.y + side.y);
+    await click(w.end.x, w.end.y);
+    check('a first letter one square to the side is forgiven', (await foundCount()) === 1, w.word);
+  }
+  check('the Hint button never moves as the status line changes', (await hintTop()) === hintTop0, `${hintTop0} -> ${await hintTop()}`);
+
+  // "New Puzzle" with progress asks first, on an ordinary page
+  const gridBefore = await js(`document.querySelector('.ws-board').textContent`);
+  await js(`document.querySelector('.bar > button').click()`);
+  check('New Puzzle asks before clearing progress', await js(`!!document.querySelector('.panel') && document.querySelector('.stage').hidden`), await js(`(document.querySelector('.panel-text') || {}).textContent`));
+  await shot('06b-ws-start-again');
+  await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Playing').click()`);
+  check('Keep Playing returns to the same puzzle', (await js(`document.querySelector('.ws-board').textContent`)) === gridBefore && (await foundCount()) === 1);
+  await js(`document.querySelector('.bar > button').click()`);
+  await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'New Puzzle').click()`);
+  check('choosing New Puzzle there starts afresh', (await js(`document.querySelector('.ws-board').textContent`)) !== gridBefore && (await foundCount()) === 0);
   const before = await js(`document.querySelector('.ws-board').textContent`);
   await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'New Puzzle').click()`);
   check('New Puzzle makes a different grid', before !== await js(`document.querySelector('.ws-board').textContent`));
@@ -269,8 +305,12 @@ try {
     check(`${levelKey}: every picture appears exactly twice`, list.every(p => p.length === 2));
 
     // Start with a deliberate mismatch, then carry straight on without waiting for it to turn back.
+    const tmStatus = () => js(`document.querySelector('.status').textContent`);
+    check(`${levelKey}: opens by saying what to do`, (await tmStatus()).includes('Tap a tile'));
     await click(centres[list[0][0]].x, centres[list[0][0]].y);
+    check(`${levelKey}: names the first picture`, (await tmStatus()).includes('Now find the other'), await tmStatus());
     await click(centres[list[1][0]].x, centres[list[1][0]].y);
+    check(`${levelKey}: says a mismatch in words, gently`, (await tmStatus()).includes('are not a pair. Tap any tile'), await tmStatus());
     check(`${levelKey}: a mismatch is not counted as a pair`, (await js(`document.querySelectorAll(".tm-tile.matched").length`)) === 0);
     // An instant second tap on a showing tile is an accident and must change nothing...
     await click(centres[list[1][0]].x, centres[list[1][0]].y);
@@ -291,16 +331,16 @@ try {
       if (levelKey === "medium" && n === 3) {
         await click(centres[list[4][0]].x, centres[list[4][0]].y);
         await click(centres[list[5][0]].x, centres[list[5][0]].y);
+        await sleep(450);
         await shot("08-tm-medium-midgame");
-        await sleep(2700);
       }
     }
-    await sleep(1700);
-    check(`${levelKey}: tile match finish screen appears`, await js(`!!document.querySelector('.win')`), await js(`(document.querySelector('.win-text') || {}).textContent || document.querySelector('.tm-status').textContent`));
+    await sleep(2700);
+    check(`${levelKey}: tile match finish screen appears`, await js(`!!document.querySelector('.panel-win')`), await js(`(document.querySelector('.panel-text') || {}).textContent || document.querySelector('.status').textContent`));
     if (levelKey === 'medium') await shot('09-tm-win');
   }
 
-  // Mismatched tiles turn back on their own
+  // Mismatched tiles wait for the player - nothing turns over by itself
   await go('#/tilematch/hard');
   {
     const centres = await js(`[...document.querySelectorAll('.tm-tile')].map(t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })`);
@@ -313,9 +353,125 @@ try {
     }
     await click(centres[b].x, centres[b].y);
     check('mismatch stays visible at first', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 2, nameA);
-    await sleep(2800);
-    check('mismatch turns back after a pause', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 0);
+    const boardTop = await js(`Math.round(document.querySelector('.tm-board').getBoundingClientRect().top)`);
+    await sleep(3500);
+    check('a mismatch stays showing until the player is ready', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 2);
+    let c = 1; while (c === b) c++;
+    await click(centres[c].x, centres[c].y);
+    check('the next tap turns the mismatch back', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 1);
+    check('the tiles never move as the status line changes', (await js(`Math.round(document.querySelector('.tm-board').getBoundingClientRect().top)`)) === boardTop);
   }
+
+  // ---------- Number Hunt (desktop) ----------
+  const nhState = () => js(`(() => {
+    const tiles = [...document.querySelectorAll('.nh-tile')];
+    const b = document.querySelector('.nh-board').getBoundingClientRect();
+    const where = {};
+    tiles.forEach(t => { const r = t.getBoundingClientRect(); where[t.textContent] = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    return { count: tiles.length, numbers: tiles.map(t => +t.textContent).sort((a, b) => a - b), where, cell: tiles[0].offsetWidth,
+      top: Math.round(b.top), bottom: b.bottom, vh: innerHeight, vw: innerWidth, scrollW: document.documentElement.scrollWidth,
+      font: parseFloat(getComputedStyle(tiles[0]).fontSize) };
+  })()`);
+  const nhStatus = () => js(`document.querySelector('.status').textContent`);
+  const nhTarget = () => js(`document.querySelector('.nh-target-number').textContent`);
+  for (const [levelKey, expected] of [['easy', 16], ['medium', 36], ['hard', 100]]) {
+    await go('#/numbers/' + levelKey);
+    const st = await nhState();
+    check(`numbers ${levelKey}: shows 1 to ${expected}, each exactly once`, st.count === expected && st.numbers.every((n, i) => n === i + 1));
+    check(`numbers ${levelKey}: squares are comfortable and everything fits`, st.cell >= 50 && st.font >= 19 && st.bottom <= st.vh && st.scrollW <= st.vw, `cell=${st.cell} font=${st.font} bottom=${st.bottom}`);
+    if (levelKey === 'hard') await shot('21-nh-hard-start');
+
+    await click(st.where[5].x, st.where[5].y);
+    check(`numbers ${levelKey}: tapping another number is met gently, and changes nothing`, (await nhStatus()) === 'That is 5. Look for 1.' && (await js(`document.querySelectorAll('.nh-tile.done').length`)) === 0, await nhStatus());
+    await js(`document.querySelector('.nh-hint').click()`);
+    check(`numbers ${levelKey}: Show Me circles the next number`, await js(`[...document.querySelectorAll('.nh-tile.hinting')].map(t => t.textContent).join() === '1'`) && (await nhStatus()) === '1 is circled.');
+    if (levelKey === 'easy') await shot('20-nh-easy-hint');
+
+    for (let n = 1; n <= expected; n++) {
+      await click(st.where[n].x, st.where[n].y);
+      if (n % 7 === 0) await click(st.where[n].x, st.where[n].y); // accidental double tap on a found number
+      if (n === 3) {
+        check(`numbers ${levelKey}: the big number shows what to find next`, (await nhTarget()) === '4' && (await nhStatus()) === 'Good. 3 of ' + expected + ' found.', await nhStatus());
+        check(`numbers ${levelKey}: the hint clears once its number is found`, (await js(`document.querySelectorAll('.nh-tile.hinting').length`)) === 0);
+        await js(`document.querySelector('.bar > button').click()`);
+        check(`numbers ${levelKey}: New Game asks before clearing progress`, await js(`!!document.querySelector('.panel') && document.querySelector('.stage').hidden`));
+        await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Playing').click()`);
+      }
+      if (levelKey === 'medium' && n === 14) await shot('22-nh-medium-midgame');
+    }
+    const after = await nhState();
+    check(`numbers ${levelKey}: the grid never moved during play`, after.top === st.top, `${st.top} -> ${after.top}`);
+    check(`numbers ${levelKey}: out-of-order taps never counted`, (await js(`document.querySelectorAll('.nh-tile.done').length`)) === expected);
+    await sleep(2700);
+    check(`numbers ${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`), await js(`(document.querySelector('.panel-text') || {}).textContent`));
+    if (levelKey === 'easy') await shot('23-nh-win');
+  }
+
+  // ---------- Hindi ----------
+  await go('#/');
+  await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'हिंदी').click()`);
+  await sleep(150);
+  check('Hindi: the whole home page switches', await js(`document.documentElement.lang === 'hi' && document.querySelector('.home-title').textContent === 'सनी गेम्स' && document.querySelector('.game-card-play').textContent === 'खेलिए'`));
+  await shot('30-hi-home');
+  check('Hindi: words split into aksharas, not characters', await js(`JSON.stringify(['रिश्तेदार', 'इंद्रधनुष', 'बुज़ुर्ग', 'कठफोड़वा'].map(w => SG.wordsearch.split(w).join(' '))) === JSON.stringify(['रि श्ते दा र', 'इं द्र ध नु ष', 'बु ज़ु र्ग', 'क ठ फो ड़ वा'])`));
+  check('Hindi: every word in every topic has at least 3 aksharas', await js(`SG.themes.hi.every(t => t.words.length >= 18 && t.words.every(w => SG.wordsearch.split(w).length >= 3))`));
+  await go('#/wordsearch');
+  await shot('31-hi-levels');
+  for (const levelKey of ['easy', 'hard']) {
+    await go('#/wordsearch/' + levelKey);
+    const hs = await js(SOLVE);
+    check(`Hindi ${levelKey}: every word is really in the grid`, hs.words.length === (levelKey === 'easy' ? 6 : 10) && hs.words.every(w => !w.missing), JSON.stringify(hs.words.filter(w => w.missing)));
+    const letter = await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`);
+    check(`Hindi ${levelKey}: aksharas are big and the board fits`, letter >= 19 && hs.boardBottom <= hs.vh && hs.scrollW <= hs.vw, 'letter=' + letter);
+    let k = 0;
+    for (const w of hs.words) {
+      if (k % 2) { await click(w.start.x, w.start.y); await click(w.end.x, w.end.y); }
+      else await drag(w.start.x, w.start.y, w.end.x, w.end.y);
+      k++;
+      if (k === 1) check(`Hindi ${levelKey}: the status line speaks Hindi`, (await js(`document.querySelector('.status').textContent`)).includes('मिल गया'), await js(`document.querySelector('.status').textContent`));
+      if (levelKey === 'hard' && k === 5) { await sleep(400); await shot('32-hi-ws-hard-midgame'); }
+    }
+    check(`Hindi ${levelKey}: all words found by drag and by tap-tap`, (await foundCount()) === hs.words.length, 'found=' + await foundCount());
+    await sleep(2700);
+    check(`Hindi ${levelKey}: finish screen in Hindi`, (await js(`(document.querySelector('.panel-title') || {}).textContent`)) === 'शाबाश!');
+    if (levelKey === 'easy') await shot('33-hi-ws-win');
+  }
+  for (const levelKey of ['easy', 'medium', 'hard']) {
+    const ms = await js(`(() => { const d = document.createElement('div'); document.body.appendChild(d); const g = SG.wordsearch.mount(d, '${levelKey}'); const t = performance.now(); for (let i = 0; i < 300; i++) g.newGame(); const e = performance.now() - t; g.destroy(); d.remove(); return e / 300; })()`);
+    check(`Hindi ${levelKey}: 300 puzzles build without error`, true, ms.toFixed(2) + ' ms each');
+  }
+  await go('#/tilematch/hard');
+  {
+    const centres = await js(`[...document.querySelectorAll('.tm-tile')].map(t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })`);
+    const faces = await js(`[...document.querySelectorAll('.tm-face')].map(f => f.textContent)`);
+    const classic = ['🍎', '🍇', '🚗', '⚽', '🎁', '🐢', '🌈', '🐱', '✈️'];
+    check('Hindi tile match: uses the Indian picture set', faces.every(f => !classic.includes(f)), faces.join(' '));
+    await click(centres[0].x, centres[0].y);
+    check('Hindi tile match: names the picture in Hindi', /[\u0900-\u097F]/.test(await js(`document.querySelector('.tm-tile').getAttribute('aria-label')`)) && (await js(`document.querySelector('.status').textContent`)).includes('जोड़ी'), await js(`document.querySelector('.status').textContent`));
+    const other = faces.findIndex((f, i) => i > 0 && f !== faces[0]);
+    await click(centres[other].x, centres[other].y);
+    await sleep(300);
+    await shot('34-hi-tilematch');
+  }
+  await go('#/numbers/easy');
+  check('Hindi number hunt: instructions in Hindi', (await js(`document.querySelector('.nh-target-label').textContent`)) === 'ढूँढ़िए' && (await js(`document.querySelector('.nh-hint').textContent`)) === 'दिखाइए');
+  await viewport(390, 844, true);
+  await go('#/wordsearch/hard');
+  {
+    const hs = await js(SOLVE);
+    const letter = await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`);
+    check('Hindi on a phone: a smaller grid keeps aksharas at least 19px', hs.cell >= 42 && letter >= 19 && hs.scrollW <= hs.vw && hs.words.every(w => !w.missing), `n=${hs.n} cell=${hs.cell.toFixed(1)} letter=${letter}`);
+    await touchDrag(hs.words[0].start.x, hs.words[0].start.y, hs.words[0].end.x, hs.words[0].end.y);
+    check('Hindi on a phone: touch-drag finds a word', (await foundCount()) === 1);
+    await sleep(400);
+    await shot('35-hi-ws-phone');
+  }
+  await go('#/');
+  await shot('36-hi-home-phone');
+  check('Hindi on a phone: home has no sideways scroll', await js(`document.documentElement.scrollWidth <= innerWidth`));
+  await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'English').click()`);
+  await sleep(150);
+  check('switching back to English works', await js(`document.documentElement.lang === 'en' && document.querySelector('.home-title').textContent === 'Sunny Games'`));
 
   // ---------- Phone (touch) ----------
   await viewport(390, 844, true);
@@ -338,25 +494,47 @@ try {
   for (const w of s.words.slice(2)) await touchDrag(w.start.x, w.start.y, w.end.x, w.end.y);
   check('phone: grid never moved while words were being found', (await foundCount()) === s.words.length);
   check('phone: page did not scroll while dragging', (await js(`pageYOffset`)) === 0);
+  await sleep(400);
   await shot('13-ws-easy-phone-midgame');
   check('phone: Hint button is on screen without scrolling', (await js(`document.querySelector(".ws-foot .btn").getBoundingClientRect().bottom`)) <= 844);
   await viewport(390, 700, true); // same phone with the browser toolbars showing
   for (let k = 0; k < 6; k++) { // several puzzles, since the word list height varies
     await go('#/wordsearch/medium');
     s = await js(SOLVE);
-    const hintBottom = await js(`document.querySelector(".ws-foot .btn").getBoundingClientRect().bottom`);
-    if (hintBottom > 700 || s.cell < 28) check('short phone: medium grid + Hint fit', false, `cell=${s.cell.toFixed(1)} hintBottom=${hintBottom}`);
+    const letter = await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`);
+    if (s.cell < 34 || letter < 19 || s.scrollW > s.vw) check('short phone: letters stay readable', false, `cell=${s.cell.toFixed(1)} letter=${letter}`);
   }
+  check('short phone: letters stay readable (6 puzzles)', true);
   await shot('14a-ws-medium-short-phone');
   await viewport(390, 844, true);
   await go('#/wordsearch/hard');
   s = await js(SOLVE);
   await shot('14-ws-hard-phone');
   check('phone: hard grid still fits width', s.scrollW <= s.vw, 'cell=' + s.cell.toFixed(1));
+  check('phone: hard uses a smaller grid so letters stay at least 19px', s.n === 10 && (await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`)) >= 19, 'n=' + s.n);
   await go('#/tilematch/hard');
   await shot('15-tm-hard-phone');
   check('phone: tile match has no sideways scroll', await js(`document.documentElement.scrollWidth <= innerWidth`));
   check('phone: tiles at least 64px', (await js(`document.querySelector('.tm-tile').offsetWidth`)) >= 64);
+  { // a finger that slides 30px while pressing (tremor) must still count as a tap
+    const t = await js(`(() => { const r = document.querySelector('.tm-tile').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await touchDrag(t.x - 15, t.y - 10, t.x + 15, t.y + 12);
+    check('phone: a drifting finger still turns the tile over', await js(`document.querySelector('.tm-tile').classList.contains('up')`));
+    const centred = await js(`(() => { const b = document.querySelector('.tm-board').getBoundingClientRect(); return { above: b.top, below: innerHeight - b.bottom }; })()`);
+    check('phone: the tiles sit in the middle of the screen, within easy reach', centred.below < centred.above + 80, JSON.stringify(centred));
+  }
+  await go('#/numbers/hard');
+  {
+    const st = await nhState();
+    check('phone: Number Hunt uses fewer, bigger numbers instead of tiny ones', st.count < 100 && st.count >= 30 && st.cell >= 50 && st.scrollW <= st.vw, `count=${st.count} cell=${st.cell}`);
+    check('phone: Show Me button is on screen', (await js(`document.querySelector('.nh-hint').getBoundingClientRect().bottom`)) <= 844);
+    await touchDrag(st.where[1].x - 10, st.where[1].y - 8, st.where[1].x + 10, st.where[1].y + 9);
+    check('phone: a drifting finger still counts on a number', (await nhTarget()) === '2');
+    await tapTouch(st.where[2].x, st.where[2].y);
+    await tapTouch(st.where[3].x, st.where[3].y);
+    await shot('24-nh-hard-phone');
+  }
+  check('long-press cannot select text or open a link preview', await js(`getComputedStyle(document.body).userSelect === 'none' && [...document.querySelectorAll('a')].every(a => a.getAttribute('draggable') === 'false')`));
 
   // ---------- Tablet ----------
   await viewport(1024, 768, true);
@@ -364,6 +542,17 @@ try {
   s = await js(SOLVE);
   await shot('16-ws-medium-tablet-landscape');
   check('tablet landscape: board fits', s.boardBottom <= s.vh && s.scrollW <= s.vw, `bottom=${s.boardBottom}`);
+  check('right hand (default): word list is to the right of the grid', await js(`document.querySelector('.ws-info').getBoundingClientRect().left > document.querySelector('.ws-board').getBoundingClientRect().right`));
+  await go('#/');
+  await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Left').click()`);
+  await shot('16a-home-tablet-landscape');
+  await go('#/wordsearch/medium');
+  check('left hand: word list and Hint move to the left of the grid', await js(`document.querySelector('.ws-hint').getBoundingClientRect().right < document.querySelector('.ws-board').getBoundingClientRect().left`));
+  await shot('16b-ws-medium-left-handed');
+  await go('#/');
+  await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Right').click()`);
+  await go('#/tilematch');
+  await shot('16c-tm-levels-tablet-landscape');
   await go('#/tilematch/hard');
   await shot('17-tm-hard-tablet-landscape');
   await viewport(1024, 690, true); // tablet with browser toolbars showing
@@ -380,6 +569,15 @@ try {
   check('tablet portrait: board + hint button fit', (await js(`document.querySelector('.ws-foot .btn').getBoundingClientRect().bottom`)) <= s.vh);
   await go('#/tilematch/medium');
   await shot('19-tm-medium-tablet-portrait');
+  await go('#/');
+  await shot('19a-home-tablet-portrait');
+  check('tablet portrait: home has no sideways scroll', await js(`document.documentElement.scrollWidth <= innerWidth`));
+  await go('#/numbers/hard');
+  {
+    const st = await nhState();
+    check('tablet portrait: all 100 numbers at a comfortable size', st.count === 100 && st.cell >= 56 && st.scrollW <= st.vw, `count=${st.count} cell=${st.cell}`);
+    await shot('19b-nh-hard-tablet-portrait');
+  }
 
   // Back button behaviour
   await viewport(1280, 800, false);

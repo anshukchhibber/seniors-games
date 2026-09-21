@@ -48,6 +48,9 @@
     tap: function () {
       note(440, 0, 0.12, 0.05);
     },
+    step: function () {
+      note(659.25, 0, 0.2, 0.08);
+    },
     found: function () {
       note(523.25, 0, 0.35, 0.12);
       note(783.99, 0.14, 0.5, 0.12);
