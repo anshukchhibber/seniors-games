@@ -15,6 +15,8 @@ const FILES = [
   'index.html',
   'manifest.webmanifest',
   'css/style.css',
+  'fonts/Baloo2-latin.woff2',
+  'fonts/Baloo2-devanagari.woff2',
   'js/util.js',
   'js/i18n.js',
   'js/sound.js',

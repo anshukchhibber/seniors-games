@@ -35,7 +35,10 @@ window.SG = window.SG || {};
   const ICONS = {
     home: ['M3 11.5L12 4l9 7.5', 'M5.5 9.8V20h13V9.8'],
     check: ['M5 12.5l4.5 4.5L19 7.5'],
-    chevron: ['M9 4.5l7.5 7.5L9 19.5']
+    chevron: ['M9 4.5l7.5 7.5L9 19.5'],
+    settings: ['M4 7h9', 'M17 7h3', 'M15 4.5v5', 'M4 17h3', 'M11 17h9', 'M9 14.5v5'],
+    levels: ['M5 19.5v-4', 'M12 19.5v-8.5', 'M19 19.5V4.5'],
+    picture: ['M3.5 5h17v14h-17z', 'M3.5 16l5-5 4 4 3-3 4.5 4.5']
   };
 
   SG.icon = function (name) {
@@ -84,6 +87,17 @@ window.SG = window.SG || {};
     }
   };
 
+  // "Reduce motion" is switched on in the tablet's settings: no movement that is only decoration.
+  SG.reducedMotion = function () {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  };
+
+  // A link that a slow, heavy press cannot start dragging (or open a link preview for).
+  SG.link = function (attrs, children) {
+    attrs.draggable = 'false';
+    return SG.el('a', attrs, children);
+  };
+
   SG.rand = function (n) {
     return Math.floor(Math.random() * n);
   };
@@ -105,11 +119,14 @@ window.SG = window.SG || {};
 
   // Every game file registers itself here; the home page lists them in the order the
   // <script> tags load. A game is:
-  //   { key, text, category, art(), mount(stage, levelKey, hooks),
-  //     levels: { key: {...} }, detail(levelKey), preview(levelKey), levelName?(levelKey) }
-  // `text` is the prefix of its entries in i18n.js (ws.title, ws.blurb, ws.howto ...).
+  //   { key, text, illustration(), mount(stage, levelKey),
+  //     levels: { key: {...} }, detail(levelKey), preview(levelKey),
+  //     levelName?(levelKey), chooser? }
+  // `text` is the prefix of its entries in i18n.js (ws.title, ws.howto ...).
+  // `chooser`: opening the game shows its levels first (Colouring Book: the pictures are the levels).
   SG.games = [];
   SG.registerGame = function (game) {
+    game.chooser = !!game.chooser;
     SG.games.push(game);
   };
 
@@ -204,7 +221,7 @@ window.SG = window.SG || {};
     });
   };
 
-  // An in-page panel (win screen, "start again?"). It replaces the game on the page - it is not a popup.
+  // An in-page panel (the finish screen). It replaces the game on the page - it is not a popup.
   SG.panel = function (options) {
     const el = SG.el;
     const children = [];
@@ -218,19 +235,39 @@ window.SG = window.SG || {};
     ]);
   };
 
-  // The finish screen. `options` may change the title, picture and the words on the two buttons.
+  // A short burst of paper confetti over the finish screen. It falls once and is gone; it is
+  // left out entirely when the tablet asks for reduced motion.
+  const CONFETTI = ['var(--accent)', 'var(--accent-deep)', '#F5B301', '#1F6B3F', '#E0457B', '#4FC3F7'];
+  SG.confetti = function () {
+    const pieces = [];
+    for (let i = 0; i < 40; i++) {
+      const piece = SG.el('i');
+      piece.style.setProperty('--x', (Math.random() * 100).toFixed(1) + '%');
+      piece.style.setProperty('--dx', Math.round(Math.random() * 160 - 80) + 'px');
+      piece.style.setProperty('--d', (Math.random() * 0.6).toFixed(2) + 's');
+      piece.style.setProperty('--r', Math.round(Math.random() * 360) + 'deg');
+      piece.style.setProperty('--c', CONFETTI[i % CONFETTI.length]);
+      pieces.push(piece);
+    }
+    return SG.el('div', { class: 'confetti', 'aria-hidden': 'true' }, pieces);
+  };
+
+  // The finish screen, in the game's own colour. `trophies` shows what was done (the words found,
+  // the pairs, the full baskets). `options` may change the title, picture and the button words.
   SG.winPanel = function (message, trophies, onAgain, levelsHref, options) {
     const el = SG.el;
     options = options || {};
     const again = el('button', { class: 'btn btn-lg', type: 'button', text: options.again || SG.t('playAgain') });
     SG.onTap(again, onAgain);
-    return SG.panel({
+    const wrap = SG.panel({
       kind: 'win',
       art: options.art || SG.star(),
       title: options.title || SG.t('wellDone'),
       text: message,
       extra: trophies,
-      actions: [again, el('a', { class: 'btn btn-secondary', href: levelsHref, draggable: 'false', text: options.back || SG.t('changeLevel') })]
+      actions: [again, SG.link({ class: 'btn btn-secondary', href: levelsHref, text: options.back || SG.t('changeLevel') })]
     });
+    if (!SG.reducedMotion()) wrap.appendChild(SG.confetti());
+    return wrap;
   };
 })(window.SG);

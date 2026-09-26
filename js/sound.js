@@ -35,6 +35,10 @@
     osc.stop(start + length + 0.05);
   }
 
+  // A pentatonic scale: any of these notes sounds pleasant after any other, so each right
+  // answer can simply play the next one up and it always makes a little tune.
+  const PENTATONIC = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51];
+
   SG.sound = {
     isOn: function () {
       return on;
@@ -55,14 +59,23 @@
       note(523.25, 0, 0.35, 0.12);
       note(783.99, 0.14, 0.5, 0.12);
     },
+    // A right answer: the i-th note of the scale, with a soft shimmer an octave up.
+    good: function (i) {
+      const freq = PENTATONIC[Math.abs(i || 0) % PENTATONIC.length];
+      note(freq, 0, 0.45, 0.11);
+      note(freq * 2, 0.03, 0.3, 0.025);
+    },
     // One clear note, e.g. for a pad in Repeat the Pattern.
     pad: function (freq) {
       note(freq, 0, 0.5, 0.14);
     },
+    // A warm chord that rises: C-E-G together, then the high C.
     win: function () {
-      [523.25, 659.25, 783.99, 1046.5].forEach(function (freq, i) {
-        note(freq, i * 0.16, 0.6, 0.12);
+      [523.25, 659.25, 783.99].forEach(function (freq, i) {
+        note(freq, i * 0.05, 0.9, 0.09);
       });
+      note(1046.5, 0.3, 1.2, 0.1);
+      note(1318.51, 0.45, 1.1, 0.05);
     }
   };
 })(window.SG);

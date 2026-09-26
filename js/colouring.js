@@ -200,17 +200,18 @@
     return svg('svg', { class: className, viewBox: '0 0 100 100', 'aria-hidden': live ? 'false' : 'true' }, nodes);
   }
 
-  function mount(stage, pictureKey, hooks) {
+  function mount(stage, pictureKey) {
     const picture = PICTURES[pictureKey];
     const t = SG.t;
-    hooks = hooks || {};
 
-    let fills, history, colour, pressedPart, pointerId;
-    let layoutEl, pictureBox, pictureSvg, palette, swatches, tools, statusEl;
+    let fills, history, colour, pressedPart, pointerId, finished, spreads = 0;
+    let layoutEl, pictureBox, pictureSvg, palette, swatches, tools, statusEl, currentEl;
 
     function render() {
       stage.textContent = '';
       statusEl = el('p', { class: 'status col-status', role: 'status' });
+      // The colour on the brush, always in view beside the words that name it.
+      currentEl = el('span', { class: 'col-current', 'aria-hidden': 'true' });
 
       pictureSvg = draw(picture, fills, 'col-picture', true);
       pictureSvg.setAttribute('role', 'group');
@@ -240,7 +241,7 @@
       tools = el('div', { class: 'col-tools' }, [undoBtn, finishBtn]);
 
       layoutEl = el('div', { class: 'col-layout' }, [
-        statusEl,
+        el('div', { class: 'col-top' }, [currentEl, statusEl]),
         pictureBox,
         el('div', { class: 'col-side' }, [palette, tools])
       ]);
@@ -266,6 +267,7 @@
       swatches.forEach(function (button, i) {
         button.setAttribute('aria-pressed', String(COLOURS[i].value === colour));
       });
+      currentEl.style.setProperty('--swatch', colour);
     }
 
     function choose(value) {
@@ -282,7 +284,7 @@
       return group ? [].slice.call(pictureSvg.querySelectorAll('[data-group="' + group + '"]')) : [node];
     }
 
-    function paint(node) {
+    function paint(node, e) {
       const nodes = partsFor(node);
       const before = nodes.map(function (n) { return fills[n.getAttribute('data-part')] || BLANK; });
       if (before.every(function (c) { return c === colour; })) return; // already this colour: nothing to undo
@@ -291,9 +293,42 @@
         fills[n.getAttribute('data-part')] = colour;
         n.setAttribute('fill', colour);
       });
+      if (e && nodes.length === 1) spread(node, before[0], e);
       save(pictureKey, fills);
-      SG.sound.step();
+      SG.sound.good(SG.rand(8));
       statusEl.textContent = t('col.colour', colourName(colour));
+    }
+
+    // The new colour spreads out from the finger. The part already has its new colour; a copy of
+    // it in the old colour lies on top, and a growing hole is cut in that copy until it is gone.
+    function spread(node, was, e) {
+      if (SG.reducedMotion() || !node.getScreenCTM) return;
+      const at = pictureSvg.createSVGPoint();
+      at.x = e.clientX;
+      at.y = e.clientY;
+      const p = at.matrixTransform(node.getScreenCTM().inverse()); // in the part's own drawing space
+      const id = 'col-spread-' + (++spreads);
+      const hole = svg('circle', { class: 'col-hole', cx: p.x, cy: p.y, r: 110, fill: '#000000' });
+      const mask = svg('mask', { id: id, maskUnits: 'userSpaceOnUse', x: -60, y: -60, width: 220, height: 220 }, [
+        svg('rect', { x: -60, y: -60, width: 220, height: 220, fill: '#FFFFFF' }),
+        hole
+      ]);
+      const cover = node.cloneNode(false);
+      ['tabindex', 'role', 'aria-label', 'data-part', 'data-group', 'class'].forEach(function (a) { cover.removeAttribute(a); });
+      cover.setAttribute('fill', was);
+      cover.setAttribute('mask', 'url(#' + id + ')');
+      cover.setAttribute('pointer-events', 'none');
+      pictureSvg.appendChild(mask);
+      node.parentNode.insertBefore(cover, node.nextSibling);
+      let gone = false;
+      function end() {
+        if (gone) return;
+        gone = true;
+        cover.remove();
+        mask.remove();
+      }
+      hole.addEventListener('animationend', end);
+      setTimeout(end, 900); // in case the animation never runs
     }
 
     // The part under the finger when it came down is the one that gets coloured, however much the
@@ -313,7 +348,7 @@
       pointerId = null;
       const node = pressedPart;
       pressedPart = null;
-      if (node) paint(node);
+      if (node) paint(node, e);
     }
 
     function onKey(e) {
@@ -350,8 +385,9 @@
         return;
       }
       SG.sound.win();
+      finished = true;
       const name = picture[SG.lang] || picture.en;
-      const panel = SG.winPanel(t('col.doneText', name), null, keepColouring, '#/colouring', {
+      const panel = SG.winPanel(t('col.doneText', name), null, keepColouring, '#/colouring/levels', {
         title: t('col.doneTitle'),
         art: draw(picture, fills, 'col-finished', false),
         again: t('col.keep'),
@@ -360,14 +396,13 @@
       stage.textContent = '';
       pictureBox = null;
       stage.appendChild(panel);
-      if (hooks.onWin) hooks.onWin();
       panel.querySelector('.panel-title').focus();
     }
 
     function keepColouring() {
+      finished = false;
       render();
       layout();
-      if (hooks.onStart) hooks.onStart();
     }
 
     // "Start Again": a clean, white copy of the picture.
@@ -389,9 +424,10 @@
     return {
       newGame: newGame,
       resize: layout,
+      // Nothing to carry on with once the picture has been finished (it is kept either way).
       progress: function () {
         const n = coloured();
-        return n ? t('col.progress', n) : null;
+        return n && !finished ? t('col.progress', n) : null;
       },
       destroy: function () {
         window.removeEventListener('resize', layout);
@@ -399,25 +435,34 @@
     };
   }
 
-  function art() {
+  // A half-coloured flower in a frame, and a brush with paint on it.
+  function illustration() {
     const fills = { petal0: '#E53935', petal1: '#FB8C00', petal2: '#E53935', petal3: '#FB8C00', middle: '#FDD835', leafL: '#9CCC65', stem: '#2E7D32' };
-    return el('div', { class: 'art art-col', 'aria-hidden': 'true' }, [
-      draw(PICTURES.flower, fills, 'art-col-picture', false),
-      el('div', { class: 'art-col-swatches' }, ['#E53935', '#FB8C00', '#FDD835', '#9CCC65'].map(function (c) {
-        const s = el('span');
-        s.style.background = c;
-        return s;
-      }))
+    const flower = draw(PICTURES.flower, fills, '', false);
+    flower.removeAttribute('class');
+    flower.setAttribute('x', 10);
+    flower.setAttribute('y', 10);
+    flower.setAttribute('width', 66);
+    flower.setAttribute('height', 66);
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, [
+      svg('rect', { x: 6, y: 6, width: 74, height: 74, rx: 10, fill: '#FFFFFF', class: 'stroke-deep', 'stroke-width': 3 }),
+      flower,
+      svg('ellipse', { cx: 94, cy: 80, rx: 16, ry: 6, class: 'fill-accent' }),
+      svg('g', { transform: 'rotate(30 100 40)' }, [
+        svg('rect', { x: 95.5, y: 2, width: 9, height: 46, rx: 4.5, fill: '#A0652A', stroke: INK, 'stroke-width': 2 }),
+        svg('rect', { x: 94.5, y: 46, width: 11, height: 10, rx: 2, fill: '#CFD8DC', stroke: INK, 'stroke-width': 2 }),
+        svg('path', { d: 'M94.5 56H105.5L104 68C102 74 98 74 96 68Z', class: 'fill-accent', stroke: INK, 'stroke-width': 2, 'stroke-linejoin': 'round' })
+      ])
     ]);
   }
 
   SG.registerGame({
     key: 'colouring',
     text: 'col',
-    category: 'create',
     levels: PICTURES,
+    chooser: true, // opening the game shows the pictures first: they are the player's gallery too
     mount: mount,
-    art: art,
+    illustration: illustration,
     // The chooser shows each picture as it was left: it is the player's gallery too.
     preview: function (key) { return draw(PICTURES[key], saved(key), 'level-art level-art-col', false); },
     levelName: function (key) { return PICTURES[key][SG.lang] || PICTURES[key].en; },

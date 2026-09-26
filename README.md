@@ -3,14 +3,32 @@
 Calm, clear games for seniors, in **English and Hindi**. No ads, no popups, no timers, no
 accounts, and no internet needed once it has been opened.
 
-| Game | Tag on its card | What it is good for |
+| Game | Its colour | What it is good for |
 | --- | --- | --- |
-| **Word Search** | Words | Find hidden words. Vocabulary and scanning; sliding along a word practises a controlled drag. |
-| **Tile Match** | Memory | Turn over tiles to find pairs. Short-term memory. |
-| **Number Hunt** | Look & Find | Tap 1, 2, 3... scattered over a grid. Attention and visual search; the hand reaches all over the screen. |
-| **Repeat the Pattern** | Memory | Pads light up in turn (each with its own colour, shape and note); tap them back. Each pattern is one longer. A slip just means "watch again". |
-| **Sort into Baskets** | Hands | Slide each picture into its basket (fruit / vegetables, hot / cold, land / water...), or tap the basket. Reaching, dragging and simple grouping. |
-| **Colouring Book** | Colour & Create | Choose a colour, tap part of a picture to fill it: flower, house, butterfly, kite, diya, lotus, rangoli. Creative and calming; nothing can go wrong. Every picture is kept, so the picture page is also the gallery. |
+| **Word Search** | amber | Find hidden words. Vocabulary and scanning; sliding along a word practises a controlled drag. |
+| **Tile Match** | teal | Cards really turn over; find the pairs. Short-term memory. |
+| **Number Hunt** | terracotta | Tap 1, 2, 3... on big round tokens scattered over the screen (12, 20 or 30 of them). Attention and visual search; the hand reaches all over the screen. |
+| **Repeat the Pattern** | purple | Pads light up in turn (each with its own colour, shape and note); tap them back. Each pattern is one longer. A slip just means "watch again". |
+| **Sort into Baskets** | green | Four pictures on the table at a time. Tap one and then its basket, or slide it in (fruit / vegetables, hot / cold, land / water...). Reaching, dragging and simple grouping. |
+| **Colouring Book** | rose | Choose a colour, tap part of a picture and the colour spreads out from your finger: flower, house, butterfly, kite, diya, lotus, rangoli. Creative and calming; nothing can go wrong. Every picture is kept, so the picture page is also the gallery. |
+
+## How it flows
+
+- **Home** is six big tiles, one per game: a picture and a name, nothing else to read. The
+  language (English / हिंदी) sits below them, with a small **Settings** button (sound, playing hand).
+- **One tap plays.** A tile opens its game straight away, at the level played last time (Easy the
+  first time). Colouring Book opens on its pictures instead, because choosing one *is* the first move.
+- **The very first time** a game is opened, a page shows its picture, three short lines on how to
+  play, and one big **Start** button. After that it never appears again (the same words stay on the
+  level page).
+- **In a game** the top bar is always **Home** · the game's name · **the level being played**
+  ("Medium", or the picture's name). That last button is how to change level.
+- **The level page** lists the levels next to How to play. If a game is under way, it is kept
+  (only hidden) and the page opens with **Keep Playing** as the big button, plus New Game. The
+  tablet's Back button also goes back to the same game.
+- **Finishing** shows what was done (the words, the pairs, the full baskets, the coloured picture)
+  in the game's colour, with a warm chord and a short burst of paper confetti; then **Play Again**
+  or **Change Level**. No scores to beat, no streaks.
 
 The games are for enjoyment and extra practice. They are not therapy, and the app makes no
 "brain training" claims (the evidence for those is weak).
@@ -36,15 +54,18 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 
 ## Design rules (please keep these when adding games)
 
-- **Nothing pops up.** Every screen is a plain page. "Home" is always top-left. "How to play"
-  lives permanently on the level page. Even "Start a new puzzle?" is an ordinary page - and it
-  only appears once there is progress to lose, with **Keep Playing** as the big button.
+- **As few taps and words as possible before playing.** A game is one tap from home. Nothing
+  on a home tile but its picture and name. The only first-time page has one button.
+- **Nothing pops up.** Every screen is a plain page. "Home" is always top-left (and always navy, the
+  same landmark in every game). "How to play" lives permanently on the level page. A game under way
+  is never thrown away by opening the level page: **Keep Playing** is the big button there.
   Long-press is tamed app-wide so the tablet's own popups (link previews, "Copy / Look Up")
   cannot appear either.
 - **No time pressure, no failure.** No timers of any kind: a hint stays until its word is found,
   and mismatched tiles stay showing until the next tap. No lives, no "wrong!" sounds, no red.
-- **One visual rule to learn:** a navy outline that looks *raised* can be pressed; flat cream or
-  plain text is information. Presses answer on touch-down by visibly going *down* (shape, not
+- **One visual rule to learn:** a dark outline that looks *raised* can be pressed; flat colour or
+  plain text is information. Each game has its own colour (`[data-game]` in `css/style.css`), but
+  the rule is the same everywhere. Presses answer on touch-down by visibly going *down* (shape, not
   just colour) - important when feeling in the fingers is reduced. No hover effects.
 - **Big and high-contrast.** Text ≥ 19px (on a phone the Hard grid shrinks to 10 × 10 rather than
   shrink the letters), buttons ≥ 64px, body text ≥ 7:1, every control edge and game state ≥ 3:1.
@@ -59,19 +80,26 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
     millimetres (browsers silently drop such taps). Accidental double-taps are ignored.
   - "Playing hand: Left / Right" puts the word list and Hint on that side, so nobody reaches
     across the grid. Games sit in the middle of the screen, not at the hard-to-reach top.
-- **Nothing moves unless the player moved it.** The layout never shifts during a game, and every
-  animation is started by the player's own action.
+- **Nothing moves unless the player moved it.** The layout never shifts during a game (a card
+  turning over, a picture leaving the table, a number being found - none of them moves anything
+  else), and every animation is started by the player's own action. With "reduce motion" switched
+  on in the tablet's settings, all of it - confetti included - is left out.
 - **Colour is never the only signal.** Found words get an outlined band, a tick and a strike-through;
   matched tiles get a thick green edge and a solid ✓ badge; chosen settings are filled *and* ticked.
 - **Never shrink, reduce instead.** When a screen is too small, a game uses fewer things at full
   size rather than more things made tiny: a phone gets a 10 × 10 word grid (8 × 8 in Hindi, whose
-  aksharas are wider) and about 50 numbers instead of 100. This is decided once, before a game starts.
+  aksharas are wider), fewer numbers, and two pictures on the sorting table instead of four. This is
+  decided once, before a game starts.
 - **Hindi is typeset as Hindi.** No letter-spacing (it breaks the headline joining the letters),
   taller lines for vowel signs, and no strike-through on found words (it makes Devanagari unreadable).
   Newer emoji (auto rickshaw, kite, lamp, lotus) are left out on tablets that cannot draw them.
 - **Pictures that can't be confused.** Look-alike tile pictures (star/sunflower, tree/turtle) are
   never dealt into the same game, and every picture is also named in the status line.
-- Icons are drawn (inline SVG), never font glyphs, so they look the same on every tablet.
+- **One friendly typeface for both languages:** Baloo 2 (SIL Open Font License, `fonts/OFL.txt`),
+  bundled so it works offline. Icons and game pictures are drawn (inline SVG), never font glyphs,
+  so they look the same on every tablet.
+- **Sounds only ever say "yes".** Each right answer plays the next note of a pentatonic scale (so
+  it always makes a little tune); a finish plays a chord. A neutral tap is a soft blip.
 - Works with keyboard and screen readers, and honours the "reduce motion" system setting.
 
 ## Make it yours
@@ -82,6 +110,8 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 | Add another language              | a block in `js/i18n.js`, word lists in `js/words.js`, and a `SCRIPTS` entry in `js/wordsearch.js` |
 | Word Search topics and words      | `js/words.js` (add family names, places, …)       |
 | How many numbers in Number Hunt   | `LEVELS` at the top of `js/numbers.js`            |
+| A game's colour                   | its `[data-game="..."]` line in `css/style.css` (keep the contrast notes above it) |
+| The typeface                      | `@font-face` at the top of `css/style.css`, the files in `fonts/` and in `FILES` in `sw.js` |
 | Grid sizes / number of words      | `LEVELS` at the top of `js/wordsearch.js`         |
 | Tile pictures (and look-alike groups) | `SYMBOLS` in `js/tilematch.js`                 |
 | Sort into Baskets groups and pictures | `GROUPS` and `SETS` in `js/sorting.js`       |
@@ -92,15 +122,25 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 
 ## Add a game
 
-1. Make `js/<game>.js` ending in `SG.registerGame({ key, text, category, levels, mount, art, preview, detail })`.
-   Copy the shape of `js/pattern.js`: `mount(stage, levelKey, hooks)` returns
-   `{ newGame, resize, progress, destroy }`. Use `SG.onTap` for every tap, `SG.timers()`, `SG.bestGrid`,
-   `SG.winPanel`, and add the class `pressable` to the game's own big buttons.
-2. `levels` can be anything to choose between, not only Easy / Medium / Hard: Colouring Book uses
-   pictures, with `levelName` and a `<text>.choose` heading.
-3. Add its words to `js/i18n.js` in **both** languages (`<text>.title`, `.blurb`, `.howto`, ...). The
-   "New Game" button and the "Start a new game?" page have shared wording; a game can override it.
-4. Add a `<script>` tag in `index.html` (the home page lists games in that order), the file to
+1. Make `js/<game>.js` ending in `SG.registerGame({ key, text, levels, mount, illustration, preview, detail })`.
+   Copy the shape of `js/pattern.js`: `mount(stage, levelKey)` returns
+   `{ newGame, resize, progress, destroy }`. `progress()` is a sentence while there is something to
+   lose ("You have found 3 of 8 pairs.") and `null` otherwise - the level page shows it above Keep
+   Playing. Use `SG.onTap` for every tap, `SG.timers()`, `SG.bestGrid`, `SG.winPanel` (pass
+   `'#/<key>/levels'` as its link), `SG.sound.good(i)` for each right answer, `SG.reducedMotion()`
+   before any movement, and add the class `pressable` to the game's own big buttons.
+2. `illustration()` returns one SVG (`viewBox="0 0 120 90"`, class `illus`) for the home tile, the
+   first-time page and How to play. Use the classes `fill-accent`, `fill-deep`, `fill-tint`,
+   `stroke-deep` and `stroke-accent` so it takes the game's colour.
+3. Give the game a colour: a `[data-game="<key>"]` line in `css/style.css` with its four accent
+   values. Check the contrast (the ratios are listed above those lines).
+4. `levels` can be anything to choose between, not only Easy / Medium / Hard: Colouring Book uses
+   pictures, with `levelName`, a `<text>.choose` heading, and `chooser: true` (opening the game shows
+   the choice first). `levels` and `howto` cannot be level keys (they are page addresses).
+5. Add its words to `js/i18n.js` in **both** languages (`<text>.title`, `.howto`, ...). "New Game",
+   "Keep Playing" and the level page's wording are shared; a game can override them
+   (`<text>.action`, `<text>.keep`, `<text>.resumeTitle`, `<text>.resumeText`, `<text>.bar`).
+6. Add a `<script>` tag in `index.html` (the home page lists games in that order), the file to
    `FILES` in `sw.js`, and a `want('<game>')` section to `tests/playtest.mjs`.
 
 ## Ideas for the next games
@@ -120,5 +160,6 @@ From a look at the research and at senior game apps (September 2026):
 `node tests/playtest.mjs` plays every game to the end in a headless browser with real mouse,
 touch and keyboard input, at desktop, phone and tablet sizes, and saves screenshots to
 `tests/.output/screenshots`. Needs Node 22+ and Edge or Chrome; no npm packages.
-`ONLY=colouring,sorting node tests/playtest.mjs` runs just those parts (`classic` is the first
-three games; also `pattern`, `hindi`, `strings`, `offline`, `home`).
+`ONLY=colouring,sorting node tests/playtest.mjs` runs just those parts (`classic` is the home page,
+the first-time page, settings and the first three games; also `pattern`, `sorting`, `colouring`,
+`hindi`, `strings`, `offline`, `home`).

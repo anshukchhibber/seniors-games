@@ -9,14 +9,18 @@
   const STRINGS = {
     en: {
       appName: 'Sunny Games',
-      'home.sub': 'Choose a game to play.',
-      play: 'Play',
       home: 'Home',
       language: 'Language',
       sound: 'Sound', on: 'On', off: 'Off',
       hand: 'Playing hand', left: 'Left', right: 'Right',
       'levels.choose': 'Choose a level',
       'levels.last': 'You played this last time',
+      'levels.playing': 'Playing now',
+      'levels.resumeTitle': 'Your game is waiting',
+      'levels.resumeText': function (progress) { return progress + ' Choosing a level below starts a new game.'; },
+      'bar.level': function (name) { return 'Level: ' + name + '. Change the level'; },
+      settings: 'Settings',
+      start: 'Start',
       howto: 'How to play',
       'level.easy': 'Easy', 'level.medium': 'Medium', 'level.hard': 'Hard',
       keepPlaying: 'Keep Playing',
@@ -24,16 +28,9 @@
       playAgain: 'Play Again',
       changeLevel: 'Change Level',
       newGame: 'New Game',
-      'confirmNew.title': 'Start a new game?',
-      'confirmNew.text': function (progress) { return progress + ' A new game will clear them.'; },
-      'cat.memory': 'Memory', 'cat.hands': 'Hands', 'cat.words': 'Words',
-      'cat.look': 'Look & Find', 'cat.create': 'Colour & Create', 'cat.music': 'Music & Calm',
 
       'ws.title': 'Word Search',
-      'ws.blurb': 'Find the hidden words in a grid of letters.',
       'ws.action': 'New Puzzle',
-      'ws.confirmTitle': 'Start a new puzzle?',
-      'ws.confirmText': function (progress) { return progress + ' A new puzzle will clear them.'; },
       'ws.howto': [
         'Slide your finger along a word.',
         'Or tap its first letter, then its last letter.',
@@ -59,7 +56,6 @@
       'ws.progress': function (n, total) { return 'You have found ' + n + ' of ' + total + ' words.'; },
 
       'tm.title': 'Tile Match',
-      'tm.blurb': 'Turn over the tiles and find the matching pairs.',
       'tm.howto': [
         'Tap a tile to turn it over. Then tap another.',
         'If the two pictures match, they stay showing.',
@@ -78,10 +74,9 @@
       'tm.progress': function (n, total) { return 'You have found ' + n + ' of ' + total + ' pairs.'; },
 
       'nh.title': 'Number Hunt',
-      'nh.blurb': 'Tap the numbers in order, starting from 1.',
       'nh.howto': [
         'Find number 1 and tap it. Then find 2, then 3, and so on.',
-        'The numbers are mixed up, so look all over the grid.',
+        'The numbers are mixed up, so look all over the screen.',
         'If you get stuck, press “Show Me”. Take as long as you like.'
       ],
       'nh.level': function (n) { return 'Numbers 1 to ' + n; },
@@ -99,7 +94,6 @@
       'nh.progress': function (done, total) { return 'You have found ' + done + ' of ' + total + ' numbers.'; },
 
       'pt.title': 'Repeat the Pattern',
-      'pt.blurb': 'Watch the pads light up, then tap them in the same order.',
       'pt.howto': [
         'Press “Watch”. The pads light up one after another.',
         'Then tap the same pads, in the same order.',
@@ -122,16 +116,17 @@
       'pt.progress': function (n) { return 'You are on a pattern of ' + n + ' pads.'; },
 
       'so.title': 'Sort into Baskets',
-      'so.blurb': 'Put each picture into the basket where it belongs.',
       'so.howto': [
-        'Slide the picture with your finger into the basket where it belongs.',
-        'Or just tap that basket.',
+        'Tap a picture, then tap the basket where it belongs.',
+        'Or slide the picture into its basket with your finger.',
         'If it is the wrong basket, the picture comes back. Take as long as you like.'
       ],
       'so.level': function (baskets, things) { return baskets + ' baskets, ' + things + ' pictures'; },
       'so.baskets': 'Baskets',
-      'so.start': 'Slide the picture into its basket, or tap the basket it goes in.',
-      'so.tip': function () { return 'Slide the picture to a basket, or tap the basket where it belongs.'; },
+      'so.table': 'Pictures to sort',
+      'so.start': 'Tap a picture, then the basket it goes in. Or slide it there.',
+      'so.pick': function (item) { return item + '. Now tap the basket it goes in, or slide it there.'; },
+      'so.tapFirst': 'First tap a picture, then the basket it goes in.',
       'so.wrong': function (item, basket) { return '“' + basket + '” is not the basket for the ' + item.toLowerCase() + '. Try another one.'; },
       'so.reveal': function (item, basket) { return 'The basket for the ' + item.toLowerCase() + ' is “' + basket + '”. It is circled.'; },
       'so.good': function (item, basket, left) { return 'Yes! ' + item + ' – into “' + basket + '”. ' + left + ' to go.'; },
@@ -140,7 +135,6 @@
       'so.progress': function (n, total) { return 'You have sorted ' + n + ' of ' + total + ' pictures.'; },
 
       'col.title': 'Colouring Book',
-      'col.blurb': 'Fill in pictures with your favourite colours.',
       'col.choose': 'Choose a picture',
       'col.howto': [
         'First choose a colour.',
@@ -163,21 +157,26 @@
       'col.keep': 'Keep Colouring',
       'col.another': 'Choose Another Picture',
       'col.action': 'Start Again',
-      'col.confirmTitle': 'Start this picture again?',
-      'col.confirmText': function (progress) { return progress + ' Starting again makes the whole picture white.'; },
+      'col.bar': function (name) { return 'Picture: ' + name + '. Choose another picture'; },
+      'col.resumeTitle': 'Your picture is kept',
+      'col.resumeText': function (progress) { return progress + ' It stays as it is if you choose another picture. “Start Again” makes it all white.'; },
       'col.progress': function (n) { return 'You have coloured ' + n + (n === 1 ? ' part.' : ' parts.'); }
     },
 
     hi: {
       appName: 'सनी गेम्स',
-      'home.sub': 'खेलने के लिए एक खेल चुनिए।',
-      play: 'खेलिए',
       home: 'होम',
       language: 'भाषा',
       sound: 'आवाज़', on: 'चालू', off: 'बंद',
       hand: 'खेलने वाला हाथ', left: 'बायाँ', right: 'दायाँ',
       'levels.choose': 'स्तर चुनिए',
       'levels.last': 'पिछली बार आपने यही खेला था',
+      'levels.playing': 'अभी यही खेल चल रहा है',
+      'levels.resumeTitle': 'आपका खेल अभी बाकी है',
+      'levels.resumeText': function (progress) { return progress + ' नीचे कोई स्तर चुनने पर नया खेल शुरू होगा।'; },
+      'bar.level': function (name) { return 'स्तर: ' + name + '। स्तर बदलिए'; },
+      settings: 'सेटिंग',
+      start: 'शुरू कीजिए',
       howto: 'कैसे खेलें',
       'level.easy': 'आसान', 'level.medium': 'मध्यम', 'level.hard': 'कठिन',
       keepPlaying: 'खेलते रहिए',
@@ -185,16 +184,9 @@
       playAgain: 'फिर से खेलिए',
       changeLevel: 'स्तर बदलिए',
       newGame: 'नया खेल',
-      'confirmNew.title': 'नया खेल शुरू करें?',
-      'confirmNew.text': function (progress) { return progress + ' नया खेल शुरू करने पर ये मिट जाएँगे।'; },
-      'cat.memory': 'याद', 'cat.hands': 'हाथ', 'cat.words': 'शब्द',
-      'cat.look': 'खोजिए', 'cat.create': 'रंग और रचना', 'cat.music': 'संगीत',
 
       'ws.title': 'शब्द खोज',
-      'ws.blurb': 'अक्षरों की जाली में छिपे हुए शब्द ढूँढ़िए।',
       'ws.action': 'नई पहेली',
-      'ws.confirmTitle': 'नई पहेली शुरू करें?',
-      'ws.confirmText': function (progress) { return progress + ' नई पहेली शुरू करने पर ये मिट जाएँगे।'; },
       'ws.howto': [
         'शब्द पर उँगली फिराइए।',
         'या पहले उसका पहला अक्षर दबाइए, फिर आख़िरी अक्षर।',
@@ -220,8 +212,6 @@
       'ws.progress': function (n, total) { return 'आपने ' + total + ' में से ' + n + ' शब्द ढूँढ़ लिए हैं।'; },
 
       'tm.title': 'जोड़ी मिलाओ',
-      'tm.blurb': 'टाइलें पलटिए और एक जैसी तस्वीरों की जोड़ियाँ ढूँढ़िए।',
-      'tm.confirmText': function (progress) { return progress + ' नया खेल शुरू करने पर ये मिट जाएँगी।'; },
       'tm.howto': [
         'किसी टाइल को दबाकर पलटिए। फिर दूसरी टाइल दबाइए।',
         'अगर दोनों तस्वीरें एक जैसी हैं, तो वे खुली रहेंगी।',
@@ -240,10 +230,9 @@
       'tm.progress': function (n, total) { return 'आपने ' + total + ' में से ' + n + ' जोड़ियाँ ढूँढ़ ली हैं।'; },
 
       'nh.title': 'अंक खोज',
-      'nh.blurb': '1 से शुरू करके अंकों को क्रम से दबाइए।',
       'nh.howto': [
         'अंक 1 ढूँढ़कर दबाइए। फिर 2 ढूँढ़िए, फिर 3, और इसी तरह आगे।',
-        'अंक इधर-उधर बिखरे हैं, इसलिए पूरी जाली में देखिए।',
+        'अंक इधर-उधर बिखरे हैं, इसलिए पूरी स्क्रीन पर देखिए।',
         'अगर अटक जाएँ, तो “दिखाइए” दबाइए। जितना चाहें, उतना समय लीजिए।'
       ],
       'nh.level': function (n) { return '1 से ' + n + ' तक के अंक'; },
@@ -261,7 +250,6 @@
       'nh.progress': function (done, total) { return 'आपने ' + total + ' में से ' + done + ' अंक ढूँढ़ लिए हैं।'; },
 
       'pt.title': 'क्रम दोहराइए',
-      'pt.blurb': 'बटन जिस क्रम में चमकें, उसी क्रम में उन्हें दबाइए।',
       'pt.howto': [
         '“देखिए” दबाइए। बटन एक-एक करके चमकेंगे।',
         'फिर उन्हीं बटनों को उसी क्रम में दबाइए।',
@@ -284,16 +272,17 @@
       'pt.progress': function (n) { return 'अभी ' + n + ' बटनों का क्रम चल रहा है।'; },
 
       'so.title': 'टोकरी में रखिए',
-      'so.blurb': 'हर तस्वीर को उसकी सही टोकरी में रखिए।',
       'so.howto': [
-        'तस्वीर को उँगली से खिसकाकर उसकी सही टोकरी में डालिए।',
-        'या बस उस टोकरी को दबाइए।',
+        'कोई तस्वीर दबाइए, फिर उसकी सही टोकरी दबाइए।',
+        'या तस्वीर को उँगली से खिसकाकर उसकी टोकरी में डालिए।',
         'अगर टोकरी सही नहीं है, तो तस्वीर वापस आ जाएगी। जितना चाहें, उतना समय लीजिए।'
       ],
       'so.level': function (baskets, things) { return baskets + ' टोकरियाँ, ' + things + ' तस्वीरें'; },
       'so.baskets': 'टोकरियाँ',
-      'so.start': 'तस्वीर को उसकी टोकरी तक खिसकाइए, या सही टोकरी दबाइए।',
-      'so.tip': function () { return 'तस्वीर को किसी टोकरी तक खिसकाइए, या सही टोकरी दबाइए।'; },
+      'so.table': 'रखने वाली तस्वीरें',
+      'so.start': 'कोई तस्वीर दबाइए, फिर उसकी टोकरी। या तस्वीर को खिसकाकर वहाँ ले जाइए।',
+      'so.pick': function (item) { return item + '। अब इसकी टोकरी दबाइए, या इसे वहाँ तक खिसकाइए।'; },
+      'so.tapFirst': 'पहले कोई तस्वीर दबाइए, फिर उसकी टोकरी।',
       'so.wrong': function (item, basket) { return item + ' के लिए “' + basket + '” वाली टोकरी नहीं है। दूसरी टोकरी आज़माइए।'; },
       'so.reveal': function (item, basket) { return item + ' की जगह “' + basket + '” वाली टोकरी में है। उस पर घेरा बना है।'; },
       'so.good': function (item, basket, left) { return 'बिल्कुल सही! ' + item + ' — “' + basket + '”। ' + left + ' बाकी।'; },
@@ -302,7 +291,6 @@
       'so.progress': function (n, total) { return 'आपने ' + total + ' में से ' + n + ' तस्वीरें रख दी हैं।'; },
 
       'col.title': 'रंग भरिए',
-      'col.blurb': 'तस्वीरों में अपने मनपसंद रंग भरिए।',
       'col.choose': 'तस्वीर चुनिए',
       'col.howto': [
         'पहले एक रंग चुनिए।',
@@ -325,8 +313,9 @@
       'col.keep': 'रंग भरते रहिए',
       'col.another': 'दूसरी तस्वीर चुनिए',
       'col.action': 'फिर से शुरू',
-      'col.confirmTitle': 'यह तस्वीर फिर से शुरू करें?',
-      'col.confirmText': function (progress) { return progress + ' फिर से शुरू करने पर सारे रंग मिट जाएँगे।'; },
+      'col.bar': function (name) { return 'तस्वीर: ' + name + '। दूसरी तस्वीर चुनिए'; },
+      'col.resumeTitle': 'आपकी तस्वीर सहेजी हुई है',
+      'col.resumeText': function (progress) { return progress + ' दूसरी तस्वीर चुनने पर भी यह ऐसी ही रहेगी। “फिर से शुरू” दबाने पर सारे रंग मिट जाएँगे।'; },
       'col.progress': function (n) { return 'आपने ' + n + ' हिस्सों में रंग भरा है।'; }
     }
   };

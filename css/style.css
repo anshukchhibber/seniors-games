@@ -1,11 +1,31 @@
-/* Sunny Games - large, calm, high-contrast.
+/* Sunny Games - large, warm, high-contrast.
 
    The visual language, in one rule a player can learn:
-     navy outline that looks RAISED  = you can press it
-     flat cream or plain text        = information
+     a dark outline that looks RAISED  = you can press it
+     flat colour or plain text         = information
+   Each game has its own colour (see "Game colours"); the rule is the same in all of them.
 
    Text never below ~19px, buttons never below 64px, colour never the only signal,
    nothing moves unless the player caused it, and no hover effects (tablets have no hover). */
+
+/* Baloo 2 (SIL Open Font License, fonts/OFL.txt): one friendly, rounded face for both English
+   and Hindi. Bundled, so it works offline and straight from the folder. */
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../fonts/Baloo2-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../fonts/Baloo2-devanagari.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+}
 
 :root {
   /* Colour - surfaces */
@@ -19,10 +39,23 @@
   /* Colour - lines */
   --color-line: #D9D0C1;             /* decoration only - never the edge of a control */
   --color-line-strong: #8A7F6D;      /* 3.7:1 - edges that must be seen */
-  /* Colour - "you can press this" */
-  --color-action: #1D4E89;
-  --color-action-pressed: #0F2D52;
-  --color-action-tint: #C9DAF0;      /* pressed fill of white buttons */
+  /* Colour - "you can press this". Navy by default; inside a game these follow its colour. */
+  --navy: #1D4E89;
+  --navy-pressed: #0F2D52;
+  --navy-tint: #C9DAF0;
+  --color-action: var(--navy);
+  --color-action-pressed: var(--navy-pressed);
+  --color-action-tint: var(--navy-tint);   /* pressed fill of white buttons */
+  /* A game's own colour (set by [data-game], below):
+       --accent        fills, card backs, pictures (>= 3:1 on cream)
+       --accent-deep   text, edges, buttons - the only one white text sits on (>= 6:1)
+       --accent-tint   surfaces (ink on it >= 11:1)
+       --accent-wash   the page behind the game */
+  --accent: var(--navy);
+  --accent-deep: var(--navy);
+  --accent-tint: #E4ECF7;
+  --accent-pressed: var(--navy-pressed);
+  --accent-wash: var(--color-bg);
   /* Colour - "done" */
   --color-done: #1F6B3F;             /* 6.5:1 with white */
   --color-done-tint: #D7EFDD;
@@ -31,7 +64,7 @@
   --color-focus: #C2410C;            /* 4.9:1 */
 
   /* Type: rem at the 22px root (19px on phones). --text-body is the floor. */
-  --font-ui: "Segoe UI", system-ui, -apple-system, Roboto, "Nirmala UI", "Kohinoor Devanagari", "Noto Sans Devanagari", Helvetica, Arial, sans-serif;
+  --font-ui: "Baloo 2", "Segoe UI", system-ui, -apple-system, Roboto, "Nirmala UI", "Kohinoor Devanagari", "Noto Sans Devanagari", Helvetica, Arial, sans-serif;
   --font-emoji: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
   --text-body: 1rem;
   --text-label: 1.1rem;              /* buttons, status, chips */
@@ -50,8 +83,9 @@
 
   /* Shape */
   --radius-sm: 8px;                  /* chips, keyboard cursor */
-  --radius-md: 16px;                 /* everything pressable, the letter grid */
-  --radius-lg: 24px;                 /* containers: cards, panels */
+  --radius-md: 20px;                 /* everything pressable, the letter grid */
+  --radius-lg: 28px;                 /* containers: cards, panels */
+  --radius-xl: 36px;                 /* the big game tiles on the home page */
   --border-thin: 2px;                /* information */
   --border: 3px;                     /* controls */
   --border-thick: 4px;               /* focus, matched */
@@ -69,6 +103,37 @@
   --motion-fade: 600ms;
 }
 
+/* ---------- Game colours ----------
+   Contrast checked: accent-deep on cream / on its tint and white on accent-deep are all >= 5.3:1,
+   accent on cream >= 3.6:1 (edges and pictures only). Setting data-game on an element re-points
+   the "press this" colours, so every button, tile and pad in a game takes the game's colour. */
+
+[data-game="wordsearch"] { --accent: #B8720A; --accent-deep: #6B4300; --accent-tint: #FFF1C9; --accent-pressed: #4A2E00; --accent-wash: #FFF9EA; }
+[data-game="tilematch"]  { --accent: #1F8A8A; --accent-deep: #0E5C5C; --accent-tint: #D5F0EE; --accent-pressed: #083B3B; --accent-wash: #F2FAF8; }
+[data-game="numbers"]    { --accent: #C8552F; --accent-deep: #8F3A1C; --accent-tint: #FFE3D8; --accent-pressed: #5E240F; --accent-wash: #FFF5F0; }
+[data-game="pattern"]    { --accent: #7B4FB5; --accent-deep: #4C2A85; --accent-tint: #EADFF7; --accent-pressed: #321A5A; --accent-wash: #F8F3FC; }
+[data-game="sorting"]    { --accent: #3A8A3A; --accent-deep: #1F6B3F; --accent-tint: #D7EFDD; --accent-pressed: #124528; --accent-wash: #F3FAF2; }
+[data-game="colouring"]  { --accent: #C9457E; --accent-deep: #8E2A5C; --accent-tint: #FBE1EC; --accent-pressed: #5E1A3C; --accent-wash: #FFF5F9; }
+/* The raised edges are re-declared too: a custom property that uses another is worked out where
+   it is declared, so these would otherwise stay navy. */
+[data-game], .bar-home {
+  --raise-action: 0 4px 0 var(--color-action-pressed);
+  --raise-surface: 0 4px 0 var(--color-action);
+}
+[data-game] {
+  --color-action: var(--accent-deep);
+  --color-action-pressed: var(--accent-pressed);
+  --color-action-tint: var(--accent-tint);
+}
+body[data-game] { background: var(--accent-wash); }
+
+/* Pictures drawn with the game's colours (see each game's illustration()) */
+.fill-accent { fill: var(--accent); }
+.fill-deep { fill: var(--accent-deep); }
+.fill-tint { fill: var(--accent-tint); }
+.stroke-deep { stroke: var(--accent-deep); }
+.stroke-accent { stroke: var(--accent); }
+
 *, *::before, *::after { box-sizing: border-box; }
 
 [hidden] { display: none !important; }
@@ -85,6 +150,7 @@ body {
   color: var(--color-ink);
   font-family: var(--font-ui);
   font-size: var(--text-body);
+  font-weight: 500;
   line-height: var(--leading-body);
   touch-action: manipulation; /* no double-tap zoom surprises */
   -webkit-tap-highlight-color: transparent;
@@ -158,7 +224,7 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   transition: transform var(--motion-press), box-shadow var(--motion-press), background-color var(--motion-press);
 }
 /* A press changes shape as well as colour: the button visibly goes down */
-.btn:active, .btn.is-pressed, .is-pressed > .game-card-play {
+.btn:active, .btn.is-pressed {
   background: var(--color-action-pressed);
   border-color: var(--color-action-pressed);
   box-shadow: var(--raise-pressed) var(--color-action-pressed);
@@ -190,6 +256,9 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .bar > :first-child { justify-self: start; }
 .bar > :last-child { justify-self: end; }
 .bar-title { font-size: var(--text-title); text-align: center; }
+.bar-home { --color-action: var(--navy); --color-action-pressed: var(--navy-pressed); --color-action-tint: var(--navy-tint); }
+.bar-level { max-width: 42vw; }
+.bar-level-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Choosers (Sound, playing hand) ---------- */
 
@@ -203,108 +272,70 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 /* ---------- Home ---------- */
 
-.home { display: flex; flex-direction: column; justify-content: center; padding-top: var(--space-5); }
+.home { padding-top: var(--space-2); }
+.home-head { display: flex; align-items: center; justify-content: center; gap: var(--space-3); padding-bottom: var(--space-5); }
+.sun { width: 54px; height: 54px; flex: none; }
+.home-title { font-size: var(--text-display); font-weight: 800; }
 
-.home-head { text-align: center; padding-bottom: var(--space-7); }
-.home-brand { display: flex; align-items: center; justify-content: center; gap: var(--space-3); }
-.sun { width: 60px; height: 60px; flex: none; }
-.home-title { font-size: var(--text-display); }
-.home-sub { font-size: var(--text-lead); color: var(--color-ink-soft); margin-top: var(--space-1); }
-
-.game-cards {
+/* One big tile per game: its picture and its name, in the game's own colour. The whole tile is
+   the button - nothing else on it to read or aim for. */
+.tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-6);
-  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
   max-width: 1068px;
   margin: 0 auto;
 }
-
-.game-card {
+.tile {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: 28px var(--space-6);
-  background: var(--color-surface);
-  border: var(--border-thin) solid var(--color-line-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--raise-card);
-  color: inherit;
+  min-height: 240px;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--accent-tint);
+  border: var(--border) solid var(--accent-deep);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 6px 0 var(--accent-deep);
+  color: var(--accent-deep);
   text-align: center;
   text-decoration: none;
   transition: transform var(--motion-press), box-shadow var(--motion-press);
 }
-.game-card:active, .game-card.is-pressed { transform: var(--press-shift); box-shadow: var(--raise-pressed) var(--color-line-strong); }
-/* What the game is good for. Flat and cream: information, not something to press */
-.game-card-tag {
-  padding: 2px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-info);
-  color: var(--color-ink);
-  font-weight: 700;
-  line-height: 1.4;
-}
-:lang(hi) .game-card-tag { line-height: 1.6; }
-.game-card-title { font-size: var(--text-title); }
-.game-card-blurb { color: var(--color-ink-soft); padding-bottom: var(--space-3); }
-.game-card-play { margin-top: auto; min-width: 200px; } /* auto: both Play buttons line up even if one blurb is longer */
+.tile:active, .tile.is-pressed { transform: translateY(5px); box-shadow: 0 1px 0 var(--accent-deep); }
+.tile-art { display: block; width: min(100%, 230px); }
+.tile-title { font-size: var(--text-title); font-weight: 800; line-height: 1.15; }
 
-/* A fixed-height box, so both cards line up however tall each little picture is */
-.art-box { height: 148px; display: flex; align-items: center; justify-content: center; }
-.art { display: grid; }
+/* The games' drawn pictures (home tile, first-time page, How to play) */
+.illus { display: block; width: 100%; height: auto; overflow: visible; }
+.illus text { font-family: var(--font-ui); }
 
-.art-ws {
-  grid-template-columns: repeat(4, 40px);
-  grid-auto-rows: 40px;
-  padding: var(--space-2);
-  background: var(--color-surface);
-  border: var(--border-thin) solid var(--color-line);
-  border-radius: 14px;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1;
-}
-.art-ws span { display: flex; align-items: center; justify-content: center; }
-.art-ws .hl { background: #FFD54F; }
-.art-ws .hl-start { border-radius: 20px 0 0 20px; }
-.art-ws .hl-end { border-radius: 0 20px 20px 0; }
+.home-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-5) var(--space-8); padding: var(--space-8) 0 var(--space-3); }
 
-.art-tm { grid-template-columns: repeat(3, 58px); grid-auto-rows: 58px; gap: var(--space-2); }
-.art-tm span {
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 12px;
-  background: var(--color-action);
-  font-family: var(--font-emoji);
-  font-size: 32px;
-  line-height: 1;
-}
-.art-tm .up { background: var(--color-surface); border: var(--border-thin) solid var(--color-action); }
-
-.art-nh { grid-template-columns: repeat(3, 58px); grid-auto-rows: 58px; gap: var(--space-2); }
-.art-nh span {
-  display: flex; align-items: center; justify-content: center;
-  border: var(--border-thin) solid var(--color-action);
-  border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: 0 3px 0 var(--color-action);
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1;
-}
-.art-nh .done, .nh-tile.done {
-  border-color: transparent;
-  box-shadow: none;
-  background: var(--color-done-tint) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F6B3F' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 50% no-repeat;
+@media (min-width: 900px) and (orientation: landscape) {
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-.home-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-5) var(--space-8); padding: var(--space-8) 0 var(--space-3); }
+/* ---------- Settings ---------- */
+
+.settings { display: grid; gap: var(--space-8); justify-items: center; padding-top: var(--space-6); }
+.settings .chooser { flex-direction: column; gap: var(--space-3); }
+.settings .chooser-label { font-size: var(--text-title); }
+
+/* ---------- The first time a game is opened ---------- */
+
+.intro { display: grid; justify-items: center; gap: var(--space-4); max-width: 640px; margin: 0 auto; padding-bottom: var(--space-6); text-align: center; }
+.intro-art { width: min(78vw, 330px); }
+.intro-title { font-size: var(--text-heading); color: var(--accent-deep); }
+.intro-lines { display: grid; gap: var(--space-2); font-size: var(--text-lead); }
+.intro-start { min-width: 280px; margin-top: var(--space-2); }
 
 /* ---------- Choose a level ---------- */
 
 .levels-page { display: grid; gap: var(--space-6); max-width: 600px; margin: 0 auto; }
 .levels { display: grid; gap: var(--space-5); }
-.levels-title { font-size: var(--text-heading); text-align: center; margin-bottom: var(--space-1); }
+.levels-title { font-size: var(--text-heading); text-align: center; margin-bottom: var(--space-1); color: var(--accent-deep); }
 
 .level-btn {
   display: grid;
@@ -335,44 +366,94 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .level-art { width: 88px; height: 88px; }
 .level-art-tiles { display: grid; grid-template-columns: repeat(4, 17px); grid-auto-rows: 17px; gap: 5px; align-content: center; justify-content: center; }
 .level-art-tiles span { background: var(--color-action); border-radius: 4px; }
-.level-art-grid { display: grid; grid-template-columns: repeat(var(--n), 1fr); grid-template-rows: repeat(var(--n), 1fr); gap: 2px; }
-.level-art-grid span { background: var(--color-action); border-radius: 2px; }
+.level-art-tokens { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 4px; padding: 4px; }
+.level-art-tokens span { width: 11px; height: 11px; border-radius: 50%; background: var(--color-action); }
 
-.howto { background: var(--color-surface-info); border-radius: var(--radius-lg); padding: var(--space-6); }
-.howto-title { font-size: var(--text-title); }
-.howto .art-box { margin: var(--space-3) 0; }
+.howto { background: var(--accent-tint); border-radius: var(--radius-lg); padding: var(--space-6); }
+.howto-title { font-size: var(--text-title); color: var(--accent-deep); }
+.howto-art { width: 220px; margin: var(--space-3) auto var(--space-4); }
 .howto p + p { margin-top: var(--space-3); }
+
+/* A game under way: carry on, or start again */
+.levels-resume {
+  max-width: 980px;
+  margin: 0 auto var(--space-7);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: var(--border) solid var(--accent-deep);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+.levels-resume-title { font-size: var(--text-heading); color: var(--accent-deep); }
+.levels-resume-text { font-size: var(--text-lead); margin-top: var(--space-2); }
+.levels-resume .panel-actions { margin-top: var(--space-5); }
+
+/* Colouring Book: the pictures, as a gallery of how each was left */
+.levels-gallery .levels { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-4); }
+.levels-gallery .levels-title { grid-column: 1 / -1; }
+.levels-gallery .level-btn { grid-template-columns: 1fr; justify-items: center; align-content: start; gap: var(--space-2); padding: var(--space-4); text-align: center; }
+.levels-gallery .level-btn .icon { display: none; }
+.levels-gallery .level-art { width: 100%; height: auto; aspect-ratio: 1; }
+.levels-gallery .level-words { align-items: center; }
+.levels-gallery .level-name { font-size: var(--text-lead); }
 
 @media (min-width: 900px) {
   .levels-page { grid-template-columns: minmax(0, 1fr) 360px; max-width: 980px; align-items: start; column-gap: var(--space-7); }
   .howto { margin-top: 58px; } /* lines the panel up with the first level, below the heading */
 }
 
-/* ---------- In-page panels: finished, and "start again?" ---------- */
+/* ---------- The finish screen ---------- */
 
-.panel-wrap { min-height: 72vh; display: flex; align-items: center; justify-content: center; }
+.panel-wrap { position: relative; overflow: hidden; min-height: 72vh; display: flex; align-items: center; justify-content: center; padding: var(--space-2) 0 var(--space-3); }
 .panel {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 640px;
+  max-width: 660px;
   padding: var(--space-8) var(--space-6);
   background: var(--color-surface);
   border: var(--border) solid var(--color-action);
   border-radius: var(--radius-lg);
   text-align: center;
 }
-.panel-win { border-color: var(--color-done); animation: panel-in 0.3s ease-out; }
-.star { width: 96px; height: 96px; }
-.panel-title { font-size: var(--text-display); }
+/* In the game's colour, with a warm glow at the top */
+.panel-win {
+  border-color: var(--accent-deep);
+  background: linear-gradient(var(--accent-tint), var(--color-surface) 55%);
+  box-shadow: 0 6px 0 var(--accent-deep);
+  animation: panel-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.star { width: 112px; height: 112px; }
+.panel-title { font-size: var(--text-display); font-weight: 800; }
+.panel-win .panel-title { color: var(--accent-deep); }
 .panel-text { font-size: var(--text-lead); margin-top: var(--space-2); }
 .panel .panel-trophies { margin-top: var(--space-6); justify-content: center; }
 .panel-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-4); margin-top: var(--space-7); padding-bottom: var(--space-1); }
 
 @keyframes panel-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: none; }
 }
 
-/* ---------- Status line (both games) ---------- */
+/* Paper confetti: falls once over the finish screen and is gone. Never blocks a tap. */
+.confetti { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 2; pointer-events: none; }
+.confetti i {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: 12px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--c);
+  animation: confetti 2.4s cubic-bezier(0.25, 0.6, 0.4, 1) var(--d) both;
+}
+@keyframes confetti {
+  0% { opacity: 1; transform: translate(0, -30px) rotate(var(--r)); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), 72vh) rotate(calc(var(--r) + 540deg)); }
+}
+
+/* ---------- Status line ---------- */
 
 /* Always two lines tall. A longer message can then never push the grid, tiles or Hint button. */
 .status { font-size: var(--text-label); font-weight: 700; line-height: 1.4; min-height: 2.8em; }
@@ -389,6 +470,7 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .ws-foot { grid-area: foot; display: grid; grid-template-columns: 1fr auto; align-items: start; gap: var(--space-3) var(--space-5); }
 
 .ws-topic { font-size: var(--text-lead); margin-bottom: var(--space-2); }
+.ws-topic strong { color: var(--accent-deep); }
 
 /* The word list is a checklist, not a row of buttons: flat, with a ring that gets ticked */
 .ws-words { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
@@ -433,8 +515,9 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   height: 320px;
   margin: 0 auto;
   background: var(--color-surface);
-  border: var(--border) solid var(--color-ink);
+  border: var(--border) solid var(--accent-deep);
   border-radius: var(--radius-md);
+  box-shadow: 0 5px 0 var(--accent-deep);
   overflow: hidden;
   cursor: pointer;
   touch-action: none; /* the grid handles every touch itself - no scrolling or zooming mid-word */
@@ -495,48 +578,50 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   grid-auto-rows: var(--tile, 100px);
   gap: var(--gap, 16px);
   justify-content: center;
+  padding-bottom: 6px; /* room for the raised edge of the last row */
 }
 
-.tm-tile {
-  position: relative;
-  padding: 0;
-  border: var(--border) solid #163B68;
+/* A card that really turns over. The button keeps its box; only the card inside it turns. */
+.tm-tile { position: relative; padding: 0; border: 0; background: none; perspective: 900px; cursor: pointer; }
+.tm-card {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.3, 0.7, 0.3, 1.15);
+}
+.tm-back, .tm-face {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   border-radius: 16%;
-  background: var(--color-action);
-  cursor: pointer;
-  transition: background-color var(--motion-state), transform var(--motion-press);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
-/* The back of a tile: an inset frame and a little sun, so it reads as "the back of a card" */
-.tm-tile::before {
-  content: "";
-  position: absolute;
-  top: 11%; right: 11%; bottom: 11%; left: 11%;
-  border: var(--border) solid rgba(255, 255, 255, 0.7);
-  border-radius: 14%;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A9C4E4' stroke-width='1.7' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3.6'/%3E%3Cpath d='M12 3.5v2.6M12 17.9v2.6M3.5 12h2.6M17.9 12h2.6M6 6l1.8 1.8M16.2 16.2L18 18M6 18l1.8-1.8M16.2 7.8L18 6'/%3E%3C/svg%3E") center / 62% no-repeat;
+/* The back: the game's colour, a frame and a pattern of little suns - plainly "the back of a card" */
+.tm-back {
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-opacity='.6' stroke-width='1.6'%3E%3Ccircle cx='12' cy='12' r='3.2'/%3E%3Cpath d='M12 4.5v2M12 17.5v2M4.5 12h2M17.5 12h2' stroke-linecap='round'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3Ccircle cx='24' cy='0' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3Ccircle cx='0' cy='24' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3Ccircle cx='24' cy='24' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3C/svg%3E") center / 34% repeat;
+  border: var(--border) solid var(--accent-deep);
+  box-shadow: 0 5px 0 var(--accent-deep), inset 0 0 0 7px var(--accent), inset 0 0 0 9.5px rgba(255, 255, 255, 0.8);
+  transition: box-shadow var(--motion-press);
 }
-.tm-tile:active, .tm-tile.is-pressed { background-color: var(--color-action-pressed); transform: scale(0.96); }
-
 .tm-face {
-  position: absolute;
-  top: 0; right: 0; bottom: 0; left: 0;
   display: flex; align-items: center; justify-content: center; /* centred by box, not by font baseline (which differs per tablet) */
+  transform: rotateY(180deg);
+  background: var(--color-surface);
+  border: var(--border) solid var(--accent-deep);
   font-family: var(--font-emoji);
-  font-size: calc(var(--tile, 100px) * 0.54);
+  font-size: calc(var(--tile, 100px) * 0.6);
   line-height: 1;
-  opacity: 0;
-  transition: opacity var(--motion-state);
+  visibility: hidden;
+  transition: visibility 0s linear 0.22s; /* hidden once it has turned away (for tablets without 3D) */
 }
+.tm-tile.up { cursor: default; }
+.tm-tile.up .tm-card { transform: rotateY(180deg); }
+.tm-tile.up .tm-face { visibility: visible; transition-delay: 0s; }
+/* A press pushes the card down before it turns */
+.tm-tile.is-pressed:not(.up) .tm-card { transform: translateY(4px); }
+.tm-tile.is-pressed:not(.up) .tm-back { box-shadow: 0 1px 0 var(--accent-deep), inset 0 0 0 7px var(--accent), inset 0 0 0 9.5px rgba(255, 255, 255, 0.8); }
 
-.tm-tile.up { background: var(--color-surface); border-color: var(--color-action); animation: tm-turn 0.25s ease-out; }
-.tm-tile.up::before { display: none; }
-.tm-tile.up .tm-face { opacity: 1; }
-.tm-tile.up:active, .tm-tile.up.is-pressed { background-color: var(--color-surface); transform: none; }
-
-/* Matched: a thick green edge and a solid ticked badge - not just a slightly different white */
-.tm-tile.matched { background: var(--color-done-tint); border: var(--border-thick) solid var(--color-done); cursor: default; }
-.tm-tile.matched:active, .tm-tile.matched.is-pressed { background-color: var(--color-done-tint); }
-.tm-tile.matched::after {
+/* Matched: a thick green edge and a solid ticked badge, and a little hop */
+.tm-tile.matched .tm-face { background: var(--color-done-tint); border: var(--border-thick) solid var(--color-done); }
+.tm-tile.matched .tm-face::after {
   content: "";
   position: absolute;
   top: 4%; right: 4%;
@@ -544,16 +629,12 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   min-width: 26px; min-height: 26px;
   border-radius: 50%;
   background: var(--color-done) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 72% no-repeat;
-  animation: tm-badge 0.25s ease-out;
 }
+.tm-tile.matched .tm-card { animation: tm-hop 0.5s ease-out 0.4s; }
 
-@keyframes tm-turn {
-  from { transform: scaleX(0.8); }
-  to { transform: scaleX(1); }
-}
-@keyframes tm-badge {
-  from { transform: scale(0); }
-  to { transform: scale(1); }
+@keyframes tm-hop {
+  0%, 100% { transform: rotateY(180deg) scale(1); }
+  45% { transform: rotateY(180deg) scale(1.1); }
 }
 
 .tm-trophies { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-family: var(--font-emoji); font-size: 48px; line-height: 1.1; }
@@ -567,41 +648,70 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 /* The number being looked for is the biggest thing on the screen */
 .nh-target { display: flex; align-items: baseline; gap: var(--space-3); font-size: var(--text-lead); line-height: 1; white-space: nowrap; }
-.nh-target-number { font-size: 3rem; font-weight: 700; min-width: 1.9em; } /* room for "100", so nothing beside it moves */
+.nh-target-number { font-size: 3.2rem; font-weight: 800; min-width: 1.3em; color: var(--accent-deep); } /* room for "30", so nothing beside it moves */
 
-.nh-board {
-  display: grid;
-  grid-template-columns: repeat(var(--cols, 4), var(--cell, 64px));
-  grid-auto-rows: var(--cell, 64px);
-  gap: var(--gap, 8px);
-  justify-content: center;
-  padding-bottom: 3px; /* room for the raised edge of the last row */
-  touch-action: none;
-}
+/* The tokens are placed by numbers.js, each inside its own cell, so they never overlap */
+.nh-board { position: relative; margin: 0 auto; touch-action: none; }
 
 .nh-tile {
+  position: absolute;
+  width: var(--token, 80px);
+  height: var(--token, 80px);
   padding: 0;
-  border: var(--border) solid var(--color-action);
-  border-radius: 20%;
+  border: var(--border) solid var(--accent-deep);
+  border-radius: 50%;
   background: var(--color-surface);
-  box-shadow: 0 3px 0 var(--color-action);
+  box-shadow: 0 5px 0 var(--accent-deep);
   color: var(--color-ink);
   font: inherit;
-  font-size: calc(var(--cell, 64px) * 0.42);
-  font-weight: 700;
+  font-size: calc(var(--token, 80px) * 0.44);
+  font-weight: 800;
   line-height: 1;
   cursor: pointer;
   transition: transform var(--motion-press), box-shadow var(--motion-press), background-color var(--motion-press);
 }
-.nh-tile:active, .nh-tile.is-pressed { background-color: var(--color-action-tint); box-shadow: 0 1px 0 var(--color-action); transform: translateY(2px); }
-/* Found: the tile goes flat and green with a tick - a change of shape, not just of colour */
-.nh-tile.done { color: transparent; cursor: default; transform: none; }
-.nh-tile.done:active, .nh-tile.done.is-pressed { background-color: var(--color-done-tint); box-shadow: none; transform: none; }
+.nh-tile:active, .nh-tile.is-pressed { background-color: var(--accent-tint); box-shadow: 0 1px 0 var(--accent-deep); transform: translateY(4px); }
+/* Found: flat, green and ticked, the number still readable - a change of shape, not just of colour */
+.nh-tile.done {
+  background: var(--color-done-tint);
+  border-color: var(--color-done);
+  box-shadow: none;
+  color: var(--color-done);
+  cursor: default;
+  transform: translateY(4px);
+  animation: nh-pop 0.4s ease-out;
+}
+.nh-tile.done::after {
+  content: "";
+  position: absolute;
+  top: -6%; right: -6%;
+  width: 34%; height: 34%;
+  min-width: 22px; min-height: 22px;
+  border-radius: 50%;
+  background: var(--color-done) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 70% no-repeat;
+}
+.nh-tile.done:active, .nh-tile.done.is-pressed { background-color: var(--color-done-tint); box-shadow: none; transform: translateY(4px); }
 /* Dashed, so the hint is a shape as well as a colour. Three gentle pulses, then it simply stays. */
-.nh-tile.hinting { outline: var(--border-thick) dashed var(--color-action); outline-offset: 2px; animation: nh-pulse 1.2s ease-in-out 3; }
+.nh-tile.hinting { outline: var(--border-thick) dashed var(--accent-deep); outline-offset: 5px; animation: nh-pulse 1.2s ease-in-out 3; }
 
+@keyframes nh-pop {
+  0% { transform: translateY(4px) scale(1); }
+  40% { transform: translateY(4px) scale(1.16); }
+  100% { transform: translateY(4px) scale(1); }
+}
 @keyframes nh-pulse {
-  50% { outline-color: #7FA3CF; }
+  50% { outline-color: var(--accent); }
+}
+
+.nh-trophies { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 520px; margin-left: auto; margin-right: auto; }
+.nh-trophies span {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px;
+  border: var(--border-thin) solid var(--color-done);
+  border-radius: 50%;
+  background: var(--color-done-tint);
+  color: var(--color-done);
+  font-size: 20px; font-weight: 800; line-height: 1;
 }
 
 @media (max-width: 640px) {
@@ -633,8 +743,8 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 /* How far through the pattern: a ring still to do, a solid dot once tapped (shape, not just colour) */
 .pt-dots { display: flex; gap: var(--space-3); min-height: 28px; align-items: center; }
-.pt-dots span { width: 24px; height: 24px; border: var(--border) solid var(--color-ink); border-radius: 50%; }
-.pt-dots .on { background: var(--color-ink); }
+.pt-dots span { width: 24px; height: 24px; border: var(--border) solid var(--accent-deep); border-radius: 50%; }
+.pt-dots .on { background: var(--accent-deep); }
 
 .pt-board {
   display: grid;
@@ -672,18 +782,6 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .pt-pad.lit .pt-shape { stroke: var(--color-ink); stroke-width: 0.9; stroke-linejoin: round; }
 .pt-showing .pt-pad { cursor: default; }
 
-.art-pt { grid-template-columns: repeat(2, 58px); grid-auto-rows: 58px; gap: var(--space-2); }
-.art-pt span {
-  display: flex; align-items: center; justify-content: center;
-  border: var(--border-thin) solid var(--pad);
-  border-radius: 14px;
-  background: var(--pad);
-  color: #FFFFFF;
-}
-.art-pt .pt-ink { color: var(--color-ink); }
-.art-pt .lit { background: #FFFFFF; color: var(--pad); border: var(--border) solid var(--color-ink); }
-.art-pt .pt-shape { width: 62%; height: 62%; }
-
 .level-art-pt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 .level-art-pads { display: grid; grid-template-columns: repeat(2, 26px); grid-auto-rows: 26px; gap: 4px; }
 .level-art-pads.six { grid-template-columns: repeat(3, 20px); grid-auto-rows: 20px; }
@@ -693,79 +791,100 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 /* ---------- Sort into Baskets ---------- */
 
-.so-layout { display: grid; gap: var(--space-3); }
+.so-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 .so-status { text-align: center; }
-.so-field { display: grid; grid-template-rows: 1fr auto; gap: var(--space-5); touch-action: none; }
-.so-home { display: flex; align-items: center; justify-content: center; min-height: calc(var(--card, 180px) + 16px); }
 
-/* The picture to sort: a raised white card - it can be picked up */
+/* The table: a fixed place for each picture, so one leaving never moves the others */
+.so-table {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), var(--card, 180px));
+  grid-auto-rows: var(--card, 180px);
+  gap: 16px;
+  justify-content: center;
+  align-content: center;
+  touch-action: none;
+}
+.so-slot { position: relative; border: var(--border-thin) dashed var(--color-line-strong); border-radius: var(--radius-lg); }
+.so-slot:not(:empty) { border-color: transparent; } /* the dashed place only shows once the table runs out */
+
+/* A picture: a raised white card - it can be picked up */
 .so-card {
-  position: relative;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   z-index: 2;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  width: var(--card, 180px);
-  height: var(--card, 180px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: var(--color-surface);
-  border: var(--border) solid var(--color-action);
+  border: var(--border) solid var(--accent-deep);
   border-radius: var(--radius-lg);
-  box-shadow: var(--raise-surface);
+  box-shadow: 0 5px 0 var(--accent-deep);
   cursor: grab;
   touch-action: none;
-  animation: panel-in 0.3s ease-out;
+  transition: translate var(--motion-state), box-shadow var(--motion-state);
+  animation: so-arrive 0.35s ease-out;
 }
-.so-card.dragging { cursor: grabbing; box-shadow: 0 10px 0 rgba(31, 42, 68, 0.25); border-width: var(--border-thick); }
-.so-card-pic { font-family: var(--font-emoji); font-size: calc(var(--card, 180px) * 0.44); line-height: 1; }
+.so-card:focus { outline: none; }
+.so-card:focus-visible { outline: var(--border-thick) solid var(--color-focus); outline-offset: 3px; }
+/* Picked up: lifted, a much thicker edge and a tick - shape as well as colour */
+.so-card.so-selected { translate: 0 -8px; border-width: 6px; box-shadow: 0 12px 0 var(--accent-deep); }
+.so-card.so-selected::after {
+  content: "";
+  position: absolute;
+  top: -14px; right: -14px;
+  width: 40px; height: 40px;
+  border: 3px solid #FFFFFF;
+  border-radius: 50%;
+  background: var(--accent-deep) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 64% no-repeat;
+}
+.so-card.dragging { z-index: 5; cursor: grabbing; box-shadow: 0 14px 0 rgba(31, 42, 68, 0.25); }
+.so-card-pic { font-family: var(--font-emoji); font-size: calc(var(--card, 180px) * 0.46); line-height: 1; }
 .so-card-name { font-weight: 700; font-size: var(--text-label); line-height: 1.2; text-align: center; padding: 0 8px; }
+
+@keyframes so-arrive {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
 
 .so-baskets { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: var(--space-4); }
 .so-basket {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--space-2);
-  min-height: 170px;
+  min-height: 180px;
   padding: var(--space-3) var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: var(--border) solid var(--color-action);
+  background: var(--accent-tint);
+  border: var(--border) solid var(--accent-deep);
   border-radius: var(--radius-lg);
-  box-shadow: var(--raise-surface);
+  box-shadow: 0 5px 0 var(--accent-deep);
   color: var(--color-ink);
   font: inherit;
   cursor: pointer;
   transition: transform var(--motion-press), box-shadow var(--motion-press), background-color var(--motion-press);
 }
-.so-basket.is-pressed { background: var(--color-action-tint); box-shadow: var(--raise-pressed) var(--color-action); transform: var(--press-shift); }
+.so-basket.is-pressed { background: var(--color-surface); box-shadow: 0 1px 0 var(--accent-deep); transform: translateY(4px); }
 /* A picture held over a basket: the basket answers before the finger lets go */
-.so-basket.so-over { background: var(--color-action-tint); border-width: var(--border-thick); }
+.so-basket.so-over { background: var(--color-surface); border-width: var(--border-thick); }
 /* Shown after a second try: dashed (a shape, not just a colour), three gentle pulses, then it stays */
-.so-basket.so-hint { outline: var(--border-thick) dashed var(--color-action); outline-offset: 4px; animation: nh-pulse 1.2s ease-in-out 3; }
-.so-basket-name { font-size: var(--text-title); font-weight: 700; line-height: var(--leading-tight); text-align: center; }
-.so-basket-pic { position: relative; display: block; width: min(100%, 220px); padding-top: 34px; }
+.so-basket.so-hint { outline: var(--border-thick) dashed var(--accent-deep); outline-offset: 5px; animation: nh-pulse 1.2s ease-in-out 3; }
+.so-basket.so-wobble .so-basket-pic { animation: so-wobble 0.5s ease-in-out; }
+.so-basket-name { font-size: var(--text-title); font-weight: 800; line-height: var(--leading-tight); text-align: center; color: var(--accent-deep); }
+.so-basket-pic { position: relative; display: block; width: min(100%, 230px); padding-top: 38px; transform-origin: 50% 90%; }
 .so-basket-art { display: block; width: 100%; height: auto; }
 /* What is already in the basket, piled on top */
 .so-contents {
-  position: absolute; left: 8%; right: 8%; top: 0;
+  position: absolute; left: 6%; right: 6%; top: 0;
   display: flex; flex-wrap: wrap-reverse; justify-content: center;
-  font-family: var(--font-emoji); font-size: 28px; line-height: 1;
-  max-height: 60px; overflow: hidden;
+  font-family: var(--font-emoji); font-size: 32px; line-height: 1;
+  max-height: 68px; overflow: hidden;
 }
 .so-contents span { margin: 0 -3px; }
+
+@keyframes so-wobble {
+  25% { transform: rotate(-5deg); }
+  60% { transform: rotate(4deg); }
+  100% { transform: none; }
+}
 
 .so-trophies { display: grid; gap: var(--space-3); text-align: left; }
 .so-trophy { display: grid; gap: 2px; }
 .so-trophy-name { font-weight: 700; }
 .so-trophy-pics { font-family: var(--font-emoji); font-size: 36px; line-height: 1.2; letter-spacing: 4px; }
-
-.art-so { grid-template-columns: repeat(2, 76px); grid-template-rows: 64px 50px; gap: 6px; justify-items: center; align-items: end; }
-.art-so-card {
-  grid-column: 1 / -1;
-  display: flex; align-items: center; justify-content: center;
-  width: 64px; height: 64px;
-  background: var(--color-surface);
-  border: var(--border-thin) solid var(--color-action);
-  border-radius: 14px;
-  box-shadow: 0 3px 0 var(--color-action);
-  font-family: var(--font-emoji); font-size: 38px; line-height: 1;
-}
-.art-so-basket { width: 76px; }
-.art-so-basket svg { display: block; width: 100%; height: auto; }
 
 .level-art-so { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 .level-art-things { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 70px; }
@@ -777,26 +896,44 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   .so-baskets { gap: var(--space-3); }
   .so-basket { min-height: 140px; padding: var(--space-2) 4px var(--space-3); }
   .so-basket-name { font-size: var(--text-body); overflow-wrap: anywhere; hyphens: auto; }
-  .so-contents { font-size: 22px; }
+  .so-basket-pic { padding-top: 30px; }
+  .so-contents { font-size: 24px; }
 }
 
 /* ---------- Colouring Book ---------- */
 
-.col-layout { display: grid; gap: var(--space-4); justify-items: center; grid-template-areas: "status" "picture" "side"; }
-.col-status { grid-area: status; text-align: center; width: 100%; }
+.col-layout { display: grid; gap: var(--space-4); justify-items: center; grid-template-areas: "top" "picture" "side"; }
+.col-top { grid-area: top; display: flex; align-items: center; justify-content: center; gap: var(--space-3); width: 100%; }
+.col-status { display: flex; align-items: center; text-align: left; } /* the words sit level with the colour pot */
+/* The colour on the brush: a big pot of it, beside the words that name it */
+.col-current {
+  flex: none;
+  width: 52px; height: 52px;
+  border: var(--border) solid var(--color-ink);
+  border-radius: 50%;
+  background: var(--swatch, #FFFFFF);
+  box-shadow: inset 0 0 0 3px #FFFFFF;
+}
 .col-picture-box { grid-area: picture; width: 320px; height: 320px; }
 .col-picture {
   display: block;
   width: 100%;
   height: 100%;
   background: var(--color-surface);
-  border: var(--border) solid var(--color-ink);
+  border: var(--border) solid var(--accent-deep);
   border-radius: var(--radius-md);
+  box-shadow: 0 5px 0 var(--accent-deep);
   touch-action: none; /* every touch on the picture is a tap on a part - never a scroll or zoom */
   cursor: pointer;
 }
 .col-part:focus { outline: none; }
 .col-part:focus-visible { stroke: var(--color-focus); stroke-width: 2.8; }
+/* The new colour spreading out from the finger (see spread() in colouring.js) */
+.col-hole { transform-box: fill-box; transform-origin: center; animation: col-spread 0.5s ease-out both; }
+@keyframes col-spread {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
 .col-side { grid-area: side; display: grid; gap: var(--space-4); justify-items: center; }
 
 .col-palette { display: grid; grid-template-columns: repeat(6, 64px); gap: 10px 12px; padding-bottom: 4px; touch-action: none; }
@@ -830,16 +967,12 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 .col-finished { display: block; width: min(320px, 70vw); height: auto; margin: 0 auto; background: #FFFFFF; border: var(--border) solid var(--color-ink); border-radius: var(--radius-md); }
 
-.art-col { grid-template-columns: 112px 26px; gap: 12px; align-items: center; }
-.art-col-picture { width: 112px; height: 112px; background: #FFFFFF; border: var(--border-thin) solid var(--color-line); border-radius: 14px; }
-.art-col-swatches { display: grid; gap: 6px; }
-.art-col-swatches span { width: 26px; height: 26px; border-radius: 50%; border: var(--border-thin) solid var(--color-ink-soft); }
 .level-art-col { background: #FFFFFF; border: var(--border-thin) solid var(--color-ink); border-radius: 10px; }
 
 @media (min-width: 820px) and (orientation: landscape) { /* keep in step with SIDE_BY_SIDE in colouring.js */
   .col-layout {
     grid-template-columns: auto 272px;
-    grid-template-areas: "status status" "picture side";
+    grid-template-areas: "top top" "picture side";
     justify-content: center;
     align-items: start;
     column-gap: 28px;
@@ -848,19 +981,13 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   .col-swatch { width: 72px; height: 72px; }
   .col-tools { flex-direction: column; align-items: stretch; }
   .col-tools .btn { max-width: none; }
-  .hand-left .col-layout { grid-template-columns: 272px auto; grid-template-areas: "status status" "side picture"; }
+  .hand-left .col-layout { grid-template-columns: 272px auto; grid-template-areas: "top top" "side picture"; }
 }
 
 @media (max-width: 480px) {
   /* Fewer colours per row rather than smaller ones */
   .col-palette { grid-template-columns: repeat(4, 64px); gap: 10px 14px; }
-  .art-col { grid-template-columns: 76px 18px; gap: 8px; }
-  .art-col-picture { width: 76px; height: 76px; border-radius: 10px; }
-  .art-col-swatches { gap: 4px; }
-  .art-col-swatches span { width: 18px; height: 18px; }
-  .howto .art-col { grid-template-columns: 112px 26px; gap: 12px; }
-  .howto .art-col-picture { width: 112px; height: 112px; }
-  .howto .art-col-swatches span { width: 26px; height: 26px; }
+  .col-current { width: 44px; height: 44px; }
 }
 
 /* ---------- Hindi (Devanagari) ---------- */
@@ -875,27 +1002,6 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
    unreadable. The tick, the colour fill and the outline already mark a found word. */
 :lang(hi) .ws-word.found .ws-word-text { text-decoration: none; }
 :lang(hi) .nh-target { line-height: 1.2; }
-
-/* ---------- Medium screens (a tablet held upright) ---------- */
-
-@media (min-width: 481px) and (max-width: 899px) {
-  /* One game per wide row: picture, words, Play */
-  .game-cards { grid-template-columns: 1fr; max-width: 720px; gap: var(--space-5); }
-  .game-card {
-    display: grid;
-    grid-template-columns: 196px 1fr auto;
-    grid-template-areas: "art tag play" "art title play" "art blurb play";
-    align-items: center;
-    column-gap: var(--space-6);
-    padding: var(--space-5) var(--space-6);
-    text-align: left;
-  }
-  .game-card .art-box { grid-area: art; height: auto; }
-  .game-card-tag { grid-area: tag; align-self: end; justify-self: start; }
-  .game-card-title { grid-area: title; }
-  .game-card-blurb { grid-area: blurb; align-self: start; padding-bottom: 0; }
-  .game-card-play { grid-area: play; min-width: 140px; margin-top: 0; }
-}
 
 /* ---------- Small screens ---------- */
 
@@ -912,37 +1018,14 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 @media (max-width: 480px) {
   html { font-size: 118.75%; } /* 19px */
   .phone-only { display: inline; }
-  .home { justify-content: flex-start; }
-  .home-head { padding-bottom: var(--space-5); }
-  .sun { width: 48px; height: 48px; }
+  .home-head { padding-bottom: var(--space-4); }
+  .sun { width: 46px; height: 46px; }
   .home-title { font-size: 2rem; }
 
-  /* Picture on the left, words on the right: both games and the settings fit on one phone screen */
-  .game-cards { gap: var(--space-5); }
-  .game-card {
-    display: grid;
-    grid-template-columns: 112px 1fr;
-    grid-template-areas: "art tag" "art title" "art blurb" "play play";
-    column-gap: var(--space-4);
-    padding: var(--space-4);
-    text-align: left;
-    align-items: center;
-  }
-  .game-card .art-box { grid-area: art; height: auto; }
-  .game-card-tag { grid-area: tag; align-self: end; justify-self: start; }
-  .game-card-title { grid-area: title; }
-  .game-card-blurb { grid-area: blurb; align-self: start; }
-  .game-card-play { grid-area: play; }
-  .art-ws { grid-template-columns: repeat(4, 24px); grid-auto-rows: 24px; padding: 5px; font-size: 14px; border-radius: 10px; }
-  .art-tm { grid-template-columns: repeat(3, 32px); grid-auto-rows: 32px; gap: 5px; }
-  .art-tm span { font-size: 18px; border-radius: 8px; }
-  .art-nh { grid-template-columns: repeat(3, 32px); grid-auto-rows: 32px; gap: 5px; }
-  .art-nh span { font-size: 16px; border-radius: 8px; box-shadow: 0 2px 0 var(--color-action); }
-  .howto .art-ws { grid-template-columns: repeat(4, 40px); grid-auto-rows: 40px; padding: var(--space-2); font-size: 22px; }
-  .howto .art-tm { grid-template-columns: repeat(3, 58px); grid-auto-rows: 58px; gap: var(--space-2); }
-  .howto .art-tm span { font-size: 32px; }
-  .howto .art-nh { grid-template-columns: repeat(3, 58px); grid-auto-rows: 58px; gap: var(--space-2); }
-  .howto .art-nh span { font-size: 26px; }
+  /* One tile per row, the picture beside the name: all six games with little scrolling */
+  .tiles { grid-template-columns: 1fr; gap: var(--space-4); }
+  .tile { flex-direction: row; justify-content: flex-start; gap: var(--space-4); min-height: 112px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); text-align: left; }
+  .tile-art { width: 116px; flex: none; }
   .home-foot { padding-top: var(--space-6); flex-direction: column; align-items: center; }
   .chooser { justify-content: space-between; width: 100%; max-width: 340px; }
   .chooser .btn { padding-left: 14px; padding-right: 18px; }
@@ -957,4 +1040,5 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  .confetti { display: none; }
 }

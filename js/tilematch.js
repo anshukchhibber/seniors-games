@@ -69,10 +69,9 @@
     }).slice(0, count);
   }
 
-  function mount(stage, levelKey, hooks) {
+  function mount(stage, levelKey) {
     const level = LEVELS[levelKey];
     const t = SG.t;
-    hooks = hooks || {};
 
     let tiles, first, pending, pendingSince, pairsFound, turns, done;
     const timers = SG.timers();
@@ -99,8 +98,13 @@
       board = el('div', { class: 'tm-board' });
 
       tiles.forEach(function (tile) {
+        // A real card: a patterned back and a picture face, turned over in 3D (the tile's own box
+        // never changes size, so nothing around it moves).
         tile.button = el('button', { class: 'tm-tile pressable', type: 'button' }, [
-          el('span', { class: 'tm-face', 'aria-hidden': 'true', text: tile.symbol })
+          el('span', { class: 'tm-card', 'aria-hidden': 'true' }, [
+            el('span', { class: 'tm-back' }),
+            el('span', { class: 'tm-face', text: tile.symbol })
+          ])
         ]);
         SG.onTap(tile.button, function () { turnOver(tile); });
         setState(tile, 'down');
@@ -124,7 +128,7 @@
       const gap = availW < 500 ? 10 : 16;
 
       const best = SG.bestGrid(tiles.length, availW, availH, gap, true);
-      const size = Math.floor(SG.clamp(best.cell, 64, 200));
+      const size = Math.floor(SG.clamp(best.cell, 64, 220));
       board.style.setProperty('--cols', best.cols);
       board.style.setProperty('--tile', size + 'px');
       board.style.setProperty('--gap', gap + 'px');
@@ -180,7 +184,7 @@
         timers.later(showWin, WIN_PAUSE_MS);
       } else {
         statusEl.textContent = t('tm.match', tile.name, left);
-        SG.sound.found();
+        SG.sound.good(pairsFound);
       }
     }
 
@@ -195,12 +199,11 @@
         pictures.map(function (tile) { return el('span', { text: tile.symbol }); }));
       const panel = SG.winPanel(
         t('tm.win', level.pairs, turns),
-        trophies, newGame, '#/tilematch'
+        trophies, newGame, '#/tilematch/levels'
       );
       stage.textContent = '';
       board = null;
       stage.appendChild(panel);
-      if (hooks.onWin) hooks.onWin();
       panel.querySelector('.panel-title').focus();
     }
 
@@ -217,7 +220,6 @@
       done = false;
       render();
       layout();
-      if (hooks.onStart) hooks.onStart();
     }
 
     window.addEventListener('resize', layout);
@@ -226,7 +228,7 @@
     return {
       newGame: newGame,
       resize: layout,
-      // Shown on the "start a new game?" page, so a stray tap cannot wipe out a game in progress.
+      // Shown on the level page while this game is under way, above its "Keep Playing" button.
       progress: function () {
         return done || !pairsFound ? null : t('tm.progress', pairsFound, level.pairs);
       },
@@ -237,20 +239,46 @@
     };
   }
 
-  function art() {
-    const face = SG.lang === 'hi' ? '🐘' : '🌻';
-    return el('div', { class: 'art art-tm', 'aria-hidden': 'true' }, [face, '', '', '', face, ''].map(function (f) {
-      return el('span', { class: f ? 'up' : '', text: f });
-    }));
+  // Three cards: one face down, and a matching pair turned up with a tick.
+  function illustration() {
+    const svg = SG.svg;
+    function flower(cx, cy) {
+      const parts = [];
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        parts.push(svg('circle', { cx: cx + 7.5 * Math.cos(a), cy: cy + 7.5 * Math.sin(a), r: 4.6, fill: '#FFC83D', stroke: '#946C00', 'stroke-width': 1 }));
+      }
+      parts.push(svg('circle', { cx: cx, cy: cy, r: 5, fill: '#8D5524', stroke: '#4E2C0E', 'stroke-width': 1 }));
+      return parts;
+    }
+    function card(x, y, angle, up) {
+      const w = 36, h = 50, cx = x + w / 2, cy = y + h / 2;
+      const parts = [svg('rect', { x: x, y: y + 3, width: w, height: h, rx: 8, class: 'fill-deep' })];
+      if (up) {
+        parts.push(svg('rect', { x: x, y: y, width: w, height: h, rx: 8, fill: '#FFFFFF', class: 'stroke-deep', 'stroke-width': 3 }));
+        parts.push.apply(parts, flower(cx, cy));
+      } else {
+        parts.push(svg('rect', { x: x, y: y, width: w, height: h, rx: 8, class: 'fill-accent stroke-deep', 'stroke-width': 3 }));
+        parts.push(svg('rect', { x: x + 5, y: y + 5, width: w - 10, height: h - 10, rx: 5, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.75, 'stroke-width': 1.8 }));
+        parts.push(svg('circle', { cx: cx, cy: cy, r: 5.5, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.85, 'stroke-width': 1.8 }));
+      }
+      return svg('g', { transform: 'rotate(' + angle + ' ' + cx + ' ' + cy + ')' }, parts);
+    }
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, [
+      card(5, 26, -9, false),
+      card(42, 12, 0, true),
+      card(79, 26, 9, true),
+      svg('circle', { cx: 110, cy: 25, r: 9, fill: '#1F6B3F', stroke: '#FFFFFF', 'stroke-width': 2 }),
+      svg('path', { d: 'M105.5 25.5l3 3 6-6.5', fill: 'none', stroke: '#FFFFFF', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+    ]);
   }
 
   SG.registerGame({
     key: 'tilematch',
     text: 'tm',
-    category: 'memory',
     levels: LEVELS,
     mount: mount,
-    art: art,
+    illustration: illustration,
     preview: function (levelKey) { return SG.squares(LEVELS[levelKey].pairs * 2, 'level-art-tiles'); },
     detail: function (levelKey) { return SG.t('tm.level', LEVELS[levelKey].pairs * 2, LEVELS[levelKey].pairs); }
   });

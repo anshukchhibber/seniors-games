@@ -1,6 +1,7 @@
-// Sort into Baskets: one picture at a time; slide it into the basket where it belongs (fruit or
-// vegetables, hot or cold...), or simply tap that basket. The baskets sit at the edges, so the
-// hand has to reach; sorting things into groups is gentle thinking practice too.
+// Sort into Baskets: up to four pictures lie on the table; put each one into the basket where it
+// belongs (fruit or vegetables, hot or cold...). Tap a picture and then its basket, or slide the
+// picture there. The baskets sit at the bottom edge, so the hand has to reach; sorting things into
+// groups is gentle thinking practice too. Each picture sorted makes room for the next one.
 //
 // Nothing is ever "wrong": a picture put in the wrong basket just comes back, and a second try at
 // the same picture shows which basket it goes in.
@@ -94,18 +95,18 @@
     ]);
   }
 
-  function reducedMotion() {
-    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }
+  const TABLE = 4;       // pictures on the table at once
+  const MIN_CARD = 130;  // px. If four cannot be this big on the screen, two are shown instead.
+  const MAX_CARD = 200;
+  const GAP = 16;
 
-  function mount(stage, levelKey, hooks) {
+  function mount(stage, levelKey) {
     const level = LEVELS[levelKey];
     const t = SG.t;
     const timers = SG.timers();
-    hooks = hooks || {};
 
-    let groups, queue, placed, current, tries, busy, settledAt, done, lastSet;
-    let layoutEl, field, home, card, statusEl, baskets;
+    let groups, queue, dealt, placed, selected, busy, settledAt, done, lastSet, slotCount;
+    let layoutEl, table, statusEl, slots, baskets;
     let drag = null;
 
     function name(item) {
@@ -133,7 +134,11 @@
     function render() {
       stage.textContent = '';
       statusEl = el('p', { class: 'status so-status', role: 'status' });
-      home = el('div', { class: 'so-home' });
+
+      // Fixed places on the table: a picture leaving or arriving never moves the others.
+      slots = [];
+      for (let i = 0; i < slotCount; i++) slots.push({ el: el('div', { class: 'so-slot' }), card: null });
+      table = el('div', { class: 'so-table', role: 'group', 'aria-label': t('so.table') }, slots.map(function (s) { return s.el; }));
 
       baskets = groups.map(function (key) {
         const contents = el('span', { class: 'so-contents', 'aria-hidden': 'true' });
@@ -143,46 +148,87 @@
         ]);
         const basket = { key: key, button: button, contents: contents, count: 0 };
         SG.onTap(button, function () { tapBasket(basket); });
+        button.addEventListener('animationend', function () { button.classList.remove('so-wobble'); });
         return basket;
       });
       const row = el('div', { class: 'so-baskets', role: 'group', 'aria-label': t('so.baskets') },
         baskets.map(function (b) { return b.button; }));
       row.style.setProperty('--n', baskets.length);
 
-      field = el('div', { class: 'so-field' }, [home, row]);
-      layoutEl = el('div', { class: 'so-layout' }, [statusEl, field]);
+      layoutEl = el('div', { class: 'so-layout' }, [statusEl, table, row]);
       stage.appendChild(layoutEl);
     }
 
-    // The play area fills the screen, so the baskets sit at the bottom corners within reach.
+    // The table takes all the room above the baskets; the pictures are as big as it allows.
+    function cardSize() {
+      const top = table.getBoundingClientRect().top + window.pageYOffset;
+      const row = layoutEl.lastChild;
+      const availH = window.innerHeight - top - row.offsetHeight - 2 * GAP - 12;
+      const grid = SG.bestGrid(slotCount, table.clientWidth, availH, GAP);
+      return { size: Math.floor(Math.min(grid.cell, MAX_CARD)), cols: grid.cols };
+    }
+
     function layout() {
-      if (!field) return;
-      const top = field.getBoundingClientRect().top + window.pageYOffset;
-      field.style.minHeight = Math.max(360, window.innerHeight - top - 20) + 'px';
-      const cardSize = SG.clamp(Math.min(field.clientWidth * 0.5, (window.innerHeight - top) * 0.34), 130, 210);
-      field.style.setProperty('--card', Math.floor(cardSize) + 'px');
+      if (!table) return;
+      const fit = cardSize();
+      table.style.setProperty('--card', Math.max(fit.size, 100) + 'px');
+      table.style.setProperty('--cols', fit.cols);
     }
 
-    function showNext() {
-      tries = 0;
-      baskets.forEach(function (b) { b.button.classList.remove('so-hint'); });
-      current = queue[placed];
-      card = el('div', { class: 'so-card', role: 'img', 'aria-label': name(current.item) }, [
-        el('span', { class: 'so-card-pic', 'aria-hidden': 'true', text: current.item[0] }),
-        el('span', { class: 'so-card-name', 'aria-hidden': 'true', text: name(current.item) })
+    function makeCard(entry) {
+      const node = el('div', { class: 'so-card', role: 'button', tabindex: '0', 'aria-label': name(entry.item) }, [
+        el('span', { class: 'so-card-pic', 'aria-hidden': 'true', text: entry.item[0] }),
+        el('span', { class: 'so-card-name', 'aria-hidden': 'true', text: name(entry.item) })
       ]);
-      card.addEventListener('pointerdown', onDown);
-      card.addEventListener('pointermove', onMove);
-      card.addEventListener('pointerup', onUp);
-      card.addEventListener('pointercancel', onCancel);
-      home.textContent = '';
-      home.appendChild(card);
+      const card = { entry: entry, el: node, tries: 0 };
+      node.addEventListener('pointerdown', function (e) { onDown(e, card); });
+      node.addEventListener('pointermove', onMove);
+      node.addEventListener('pointerup', onUp);
+      node.addEventListener('pointercancel', onCancel);
+      node.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        select(card);
+      });
+      return card;
     }
 
-    // Moves the card by (dx, dy) from its place, optionally gliding there.
-    function moveCard(dx, dy, scale, glide) {
-      card.style.transition = glide && !reducedMotion() ? 'transform ' + MOVE_MS + 'ms ease-out' : 'none';
-      card.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)' + (scale ? ' scale(' + scale + ')' : '');
+    // Fills every empty place on the table from the pile.
+    function fillTable() {
+      slots.forEach(function (slot) {
+        if (slot.card || dealt >= queue.length) return;
+        slot.card = makeCard(queue[dealt++]);
+        slot.card.slot = slot;
+        slot.el.appendChild(slot.card.el);
+      });
+    }
+
+    function cardsOnTable() {
+      return slots.filter(function (s) { return s.card; }).map(function (s) { return s.card; });
+    }
+
+    function clearHints() {
+      baskets.forEach(function (b) { b.button.classList.remove('so-hint'); });
+    }
+
+    // Tapping a picture picks it up: it lifts and gets a thick outline, and the status line
+    // says what to do next. Tapping it again changes nothing (so a double tap is harmless).
+    function select(card) {
+      if (done || busy) return;
+      if (selected !== card) {
+        if (selected) selected.el.classList.remove('so-selected');
+        clearHints();
+        selected = card;
+        card.el.classList.add('so-selected');
+      }
+      SG.sound.tap();
+      statusEl.textContent = t('so.pick', name(card.entry.item));
+    }
+
+    // Moves a card by (dx, dy) from its place, optionally gliding there.
+    function moveCard(card, dx, dy, scale, glide) {
+      card.el.style.transition = glide && !SG.reducedMotion() ? 'transform ' + MOVE_MS + 'ms ease-out' : 'none';
+      card.el.style.transform = dx || dy || scale ? 'translate(' + dx + 'px, ' + dy + 'px)' + (scale ? ' scale(' + scale + ')' : '') : '';
     }
 
     function centreOf(node) {
@@ -190,96 +236,111 @@
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     }
 
-    // Puts the current thing into `basket`, which the player chose by sliding or tapping.
-    function drop(basket, byTap) {
-      const from = centreOf(home);
-      if (basket.key !== current.group) {
-        tries++;
-        moveCard(0, 0, 0, true); // it simply comes back
+    // Puts `card` into `basket`, which the player chose by sliding or tapping.
+    function drop(card, basket, byTap) {
+      const item = card.entry.item;
+      if (basket.key !== card.entry.group) {
+        card.tries++;
+        moveCard(card, 0, 0, 0, true); // it simply comes back
         SG.sound.tap();
-        if (tries === 1 && baskets.length > 1) {
-          statusEl.textContent = t('so.wrong', name(current.item), groupName(basket.key));
+        if (card.tries === 1 && baskets.length > 1) {
+          statusEl.textContent = t('so.wrong', name(item), groupName(basket.key));
         } else {
-          const right = baskets.filter(function (b) { return b.key === current.group; })[0];
+          const right = baskets.filter(function (b) { return b.key === card.entry.group; })[0];
           right.button.classList.add('so-hint');
-          statusEl.textContent = t('so.reveal', name(current.item), groupName(right.key));
+          statusEl.textContent = t('so.reveal', name(item), groupName(right.key));
         }
         return;
       }
 
       busy = true;
+      const from = centreOf(card.slot.el);
       const to = centreOf(basket.button.querySelector('.so-basket-pic'));
-      moveCard(to.x - from.x, to.y - from.y, 0.35, true);
-      const item = current.item;
+      moveCard(card, to.x - from.x, to.y - from.y, 0.3, true);
       timers.later(function () {
+        card.slot.el.removeChild(card.el);
+        card.slot.card = null;
+        if (selected === card) selected = null;
+        clearHints();
         basket.count++;
         basket.contents.appendChild(el('span', { text: item[0] }));
         basket.button.setAttribute('aria-label', groupName(basket.key) + ', ' + basket.count);
+        if (!SG.reducedMotion()) basket.button.classList.add('so-wobble');
         placed++;
         busy = false;
         if (byTap) settledAt = Date.now(); // a quick second tap on that basket is an accident, not the next answer
         const left = queue.length - placed;
         if (left === 0) {
           done = true;
-          home.textContent = '';
           statusEl.textContent = t('so.last', name(item), groupName(basket.key));
           SG.sound.win();
           timers.later(showWin, WIN_PAUSE_MS);
           return;
         }
         statusEl.textContent = t('so.good', name(item), groupName(basket.key), left);
-        SG.sound.found();
-        showNext();
-      }, reducedMotion() ? 0 : MOVE_MS);
+        SG.sound.good(placed - 1);
+        fillTable();
+      }, SG.reducedMotion() ? 0 : MOVE_MS);
     }
 
+    // A basket tap puts the picked-up picture in it (or the last picture, when only one is left).
     function tapBasket(basket) {
       if (done || busy || drag || Date.now() - settledAt < SETTLE_MS) return;
-      drop(basket, true);
+      const onTable = cardsOnTable();
+      const card = selected || (onTable.length === 1 ? onTable[0] : null);
+      if (!card) {
+        statusEl.textContent = t('so.tapFirst');
+        return;
+      }
+      drop(card, basket, true);
     }
 
-    // ----- Sliding the card -----
+    // ----- Sliding a card -----
 
-    function onDown(e) {
+    function onDown(e, card) {
       if (done || busy || drag) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
-      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
-      try { card.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
-      card.classList.add('dragging');
+      drag = { id: e.pointerId, card: card, x: e.clientX, y: e.clientY, moved: false };
+      try { card.el.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
     }
 
     function onMove(e) {
       if (!drag || e.pointerId !== drag.id) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
-      drag.moved = true;
-      moveCard(dx, dy, 0, false);
+      if (!drag.moved) {
+        drag.moved = true;
+        if (selected !== drag.card) select(drag.card); // the picture being slid is the one picked up
+        drag.card.el.classList.add('dragging');
+      }
+      moveCard(drag.card, dx, dy, 0, false);
       baskets.forEach(function (b) { b.button.classList.toggle('so-over', b === basketAt(e.clientX, e.clientY)); });
     }
 
     function onUp(e) {
       if (!drag || e.pointerId !== drag.id) return;
-      const moved = drag.moved;
+      const card = drag.card, moved = drag.moved;
       drag = null;
-      card.classList.remove('dragging');
+      card.el.classList.remove('dragging');
       baskets.forEach(function (b) { b.button.classList.remove('so-over'); });
       if (!moved) {
-        moveCard(0, 0, 0, false);
-        statusEl.textContent = t('so.tip', name(current.item));
+        moveCard(card, 0, 0, 0, false);
+        select(card);
         return;
       }
       const basket = basketAt(e.clientX, e.clientY);
-      if (basket) drop(basket);
-      else moveCard(0, 0, 0, true); // let go away from every basket: it floats back, nothing else happens
+      if (basket) drop(card, basket);
+      else moveCard(card, 0, 0, 0, true); // let go away from every basket: it floats back, nothing else happens
     }
 
     function onCancel(e) {
       if (!drag || e.pointerId !== drag.id) return;
+      const card = drag.card;
       drag = null;
-      card.classList.remove('dragging');
+      card.el.classList.remove('dragging');
       baskets.forEach(function (b) { b.button.classList.remove('so-over'); });
-      moveCard(0, 0, 0, true);
+      moveCard(card, 0, 0, 0, true);
     }
 
     function basketAt(x, y) {
@@ -301,27 +362,33 @@
           el('span', { class: 'so-trophy-pics', text: b.contents.textContent })
         ]);
       }));
-      const panel = SG.winPanel(t('so.win', queue.length), trophies, newGame, '#/sorting');
+      const panel = SG.winPanel(t('so.win', queue.length), trophies, newGame, '#/sorting/levels');
       stage.textContent = '';
-      field = null;
+      table = null;
       stage.appendChild(panel);
-      if (hooks.onWin) hooks.onWin();
       panel.querySelector('.panel-title').focus();
     }
 
     function newGame() {
       timers.clear();
       deal();
+      dealt = 0;
       placed = 0;
+      selected = null;
       busy = false;
       done = false;
       drag = null;
       settledAt = 0;
+      // Four pictures if they can be big on this screen, otherwise two. Decided once, before play.
+      slotCount = Math.min(TABLE, queue.length);
       render();
-      showNext();
+      if (slotCount > 2 && cardSize().size < MIN_CARD) {
+        slotCount = 2;
+        render();
+      }
+      fillTable();
       statusEl.textContent = t('so.start');
       layout();
-      if (hooks.onStart) hooks.onStart();
     }
 
     window.addEventListener('resize', layout);
@@ -340,11 +407,22 @@
     };
   }
 
-  function art() {
-    return el('div', { class: 'art art-so', 'aria-hidden': 'true' }, [
-      el('span', { class: 'art-so-card', text: SG.lang === 'hi' ? '🥭' : '🍎' }),
-      el('span', { class: 'art-so-basket' }, [basketArt()]),
-      el('span', { class: 'art-so-basket' }, [basketArt()])
+  // A basket with fruit in it, and an apple on its way in.
+  function illustration() {
+    const basket = basketArt();
+    basket.removeAttribute('class');
+    basket.setAttribute('x', 16);
+    basket.setAttribute('y', 40);
+    basket.setAttribute('width', 84);
+    basket.setAttribute('height', 47);
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, [
+      svg('circle', { cx: 46, cy: 44, r: 11, fill: '#FB8C00', stroke: '#8A4B00', 'stroke-width': 1.8 }),
+      svg('circle', { cx: 67, cy: 42, r: 11, fill: '#8BC34A', stroke: '#33691E', 'stroke-width': 1.8 }),
+      basket,
+      svg('path', { d: 'M83 28Q80 38 72 40', fill: 'none', class: 'stroke-accent', 'stroke-width': 3, 'stroke-dasharray': '3.5 4', 'stroke-linecap': 'round' }),
+      svg('path', { d: 'M92 7V12', stroke: '#5B3A1A', 'stroke-width': 2.5, 'stroke-linecap': 'round' }),
+      svg('path', { d: 'M92 9C95 4 101 4 103 6 100 10 95 11 92 9z', fill: '#66BB6A', stroke: '#2E7D32', 'stroke-width': 1.5 }),
+      svg('path', { d: 'M92 13C86 9 79 13 79 21 79 29 85 35 92 33 99 35 105 29 105 21 105 13 98 9 92 13z', fill: '#E53935', stroke: '#8E1B1B', 'stroke-width': 1.8 })
     ]);
   }
 
@@ -360,10 +438,9 @@
   SG.registerGame({
     key: 'sorting',
     text: 'so',
-    category: 'hands',
     levels: LEVELS,
     mount: mount,
-    art: art,
+    illustration: illustration,
     preview: preview,
     detail: function (levelKey) { return SG.t('so.level', LEVELS[levelKey].baskets, LEVELS[levelKey].things); }
   });

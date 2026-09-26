@@ -46,12 +46,11 @@
     return svg('svg', { class: 'pt-shape', viewBox: '0 0 24 24', 'aria-hidden': 'true' }, [SHAPES[pad.shape]()]);
   }
 
-  function mount(stage, levelKey, hooks) {
+  function mount(stage, levelKey) {
     const level = LEVELS[levelKey];
     const t = SG.t;
     const pads = PADS.slice(0, level.pads);
     const timers = SG.timers();
-    hooks = hooks || {};
 
     // phase: 'ready' (waiting for Watch), 'showing', 'input', 'done'
     let sequence, length, entered, phase, lastTap, lastPad, slipped;
@@ -204,11 +203,10 @@
     }
 
     function showWin() {
-      const panel = SG.winPanel(t('pt.win', level.to), null, newGame, '#/pattern');
+      const panel = SG.winPanel(t('pt.win', level.to), null, newGame, '#/pattern/levels');
       stage.textContent = '';
       board = null;
       stage.appendChild(panel);
-      if (hooks.onWin) hooks.onWin();
       panel.querySelector('.panel-title').focus();
     }
 
@@ -226,7 +224,6 @@
       drawDots();
       statusEl.textContent = t('pt.start');
       layout();
-      if (hooks.onStart) hooks.onStart();
     }
 
     window.addEventListener('resize', layout);
@@ -247,12 +244,19 @@
     };
   }
 
-  function art() {
-    return el('div', { class: 'art art-pt', 'aria-hidden': 'true' }, PADS.slice(0, 4).map(function (pad, i) {
-      const span = el('span', { class: (i === 2 ? 'lit' : '') + (pad.ink ? ' pt-ink' : '') }, [padIcon(pad)]);
-      span.style.setProperty('--pad', pad.color);
-      return span;
-    }));
+  // Four pads, one of them lit, with a little burst of light beside it.
+  function illustration() {
+    const INK = '#1F2A44';
+    const parts = [];
+    PADS.slice(0, 4).forEach(function (pad, i) {
+      const x = 19 + (i % 2) * 44, y = 4 + Math.floor(i / 2) * 42, lit = i === 2;
+      parts.push(svg('rect', { x: x, y: y + 3.5, width: 38, height: 38, rx: 10, fill: INK }));
+      parts.push(svg('rect', { x: x, y: y, width: 38, height: 38, rx: 10, fill: lit ? '#FFFFFF' : pad.color, stroke: lit ? INK : pad.color, 'stroke-width': 2.5 }));
+      if (lit) parts.push(svg('rect', { x: x + 4, y: y + 4, width: 30, height: 30, rx: 7, fill: 'none', stroke: pad.color, 'stroke-width': 3 }));
+      parts.push(svg('svg', { x: x + 8, y: y + 8, width: 22, height: 22, viewBox: '0 0 24 24', fill: lit ? pad.color : (pad.ink ? INK : '#FFFFFF') }, [SHAPES[pad.shape]()]));
+    });
+    parts.push(svg('path', { d: 'M13 52L6 47M11 65H3M13 78L6 83', stroke: '#F5B301', 'stroke-width': 3.5, 'stroke-linecap': 'round' }));
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 
   // Four or six pads, with a row of dots for how long the patterns get.
@@ -275,10 +279,9 @@
   SG.registerGame({
     key: 'pattern',
     text: 'pt',
-    category: 'memory',
     levels: LEVELS,
     mount: mount,
-    art: art,
+    illustration: illustration,
     preview: preview,
     detail: function (levelKey) { return SG.t('pt.level.' + levelKey); }
   });

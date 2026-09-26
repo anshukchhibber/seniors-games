@@ -27,7 +27,7 @@ const EDGE = [
 if (!EDGE) throw new Error('Could not find Edge or Chrome - add its path to the list at the top of this file.');
 
 // A tiny static file server for the app, on any free port.
-const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2' };
 const server = createServer(async (req, res) => {
   let file = resolve(ROOT, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
   if (file === ROOT) file = join(ROOT, 'index.html'); // like a real web host
@@ -177,15 +177,41 @@ try {
   await viewport(1280, 800, false);
   await go('#/');
   await js(`localStorage.clear()`);
+  // Every game has been opened before (the first-time "How to play" page is tested on its own).
+  const seenAll = () => js(`SG.games.forEach(g => localStorage.setItem('sg.seen.' + g.key, '1'))`);
+  await seenAll();
+  const levelLabel = () => js(`document.querySelector('.bar-level').textContent`);
 
   if (want('classic')) {
   // ---------- Desktop ----------
   await go('#/');
   await shot('01-home-desktop');
-  check('home shows every game, each with what it is good for', await js(`document.querySelectorAll('.game-card').length === SG.games.length && SG.games.length >= 3 && [...document.querySelectorAll('.game-card-tag')].every(t => t.textContent.trim().length > 2)`));
+  check('home shows one big tile per game, each with its picture and name', await js(`document.querySelectorAll('.tile').length === SG.games.length && SG.games.length >= 6 && [...document.querySelectorAll('.tile')].every(t => t.querySelector('svg') && t.querySelector('.tile-title').textContent.trim().length > 2 && t.offsetHeight >= 200)`));
+  check('home: nothing on a tile but its picture and name (no tags, blurbs or separate Play buttons)', await js(`document.querySelectorAll('.tile .btn, .tile p').length === 0`));
+
+  // The first time a game is opened: how to play, and one Start button. Then never again.
+  await js(`localStorage.removeItem('sg.seen.tilematch'); localStorage.removeItem('sg.last.tilematch')`);
+  await go('#/tilematch');
+  check('first time: a game opens with how to play and one big Start button', await js(`!!document.querySelector('.intro') && !document.querySelector('.tm-board') && document.querySelectorAll('.intro button').length === 1 && document.querySelector('.intro-start').offsetHeight >= 72`));
+  await shot('02a-intro-first-time');
+  await js(`document.querySelector('.intro-start').click()`);
+  await sleep(200);
+  check('Start begins the game at once, on the same page address', await js(`!!document.querySelector('.tm-board') && location.hash === '#/tilematch'`) && (await levelLabel()) === 'Easy');
+  await go('#/tilematch');
+  check('after that, tapping the game plays it straight away', await js(`!document.querySelector('.intro') && !!document.querySelector('.tm-board')`));
+  await go('#/tilematch/hard');
+  await go('#/tilematch');
+  check('it opens at the level played last time, named top-right', (await levelLabel()) === 'Hard', await levelLabel());
+  await go('#/');
+  await js(`document.querySelector('.home-settings').click()`);
+  await sleep(200);
+  check('the settings page has sound and playing hand', await js(`location.hash === '#/settings' && ['On', 'Off', 'Left', 'Right'].every(w => [...document.querySelectorAll('.chooser button')].some(b => b.textContent === w))`));
+  await shot('02b-settings');
+  await go('#/');
+
   check('home offers English and Hindi, each in its own script', await js(`['English', 'हिंदी'].every(name => [...document.querySelectorAll('.chooser button')].some(b => b.textContent === name))`));
 
-  await go('#/wordsearch');
+  await go('#/wordsearch/levels');
   await shot('02-levels-desktop');
   check('three levels listed', (await js(`document.querySelectorAll('.level-btn').length`)) === 3);
 
@@ -213,7 +239,7 @@ try {
     }
     await sleep(2700);
     check(`${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`));
-    check(`${levelKey}: finish screen lists the found words and hides "New Puzzle"`, await js(`document.querySelectorAll('.panel-trophies .ws-word.found').length === ${s.words.length} && getComputedStyle(document.querySelector('.bar > button')).visibility === 'hidden'`));
+    check(`${levelKey}: finish screen lists the found words; the level stays named top-right`, await js(`document.querySelectorAll('.panel-trophies .ws-word.found').length === ${s.words.length}`) && (await levelLabel()) === levelKey[0].toUpperCase() + levelKey.slice(1));
     if (levelKey === 'easy') await shot('05-ws-win');
   }
 
@@ -255,19 +281,32 @@ try {
   }
   check('the Hint button never moves as the status line changes', (await hintTop()) === hintTop0, `${hintTop0} -> ${await hintTop()}`);
 
-  // "New Puzzle" with progress asks first, on an ordinary page
+  // The level page, opened mid-game, keeps the game and offers to carry on
   const gridBefore = await js(`document.querySelector('.ws-board').textContent`);
-  await js(`document.querySelector('.bar > button').click()`);
-  check('New Puzzle asks before clearing progress', await js(`!!document.querySelector('.panel') && document.querySelector('.stage').hidden`), await js(`(document.querySelector('.panel-text') || {}).textContent`));
-  await shot('06b-ws-start-again');
-  await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Playing').click()`);
-  check('Keep Playing returns to the same puzzle', (await js(`document.querySelector('.ws-board').textContent`)) === gridBefore && (await foundCount()) === 1);
-  await js(`document.querySelector('.bar > button').click()`);
-  await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'New Puzzle').click()`);
-  check('choosing New Puzzle there starts afresh', (await js(`document.querySelector('.ws-board').textContent`)) !== gridBefore && (await foundCount()) === 0);
-  const before = await js(`document.querySelector('.ws-board').textContent`);
-  await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'New Puzzle').click()`);
-  check('New Puzzle makes a different grid', before !== await js(`document.querySelector('.ws-board').textContent`));
+  const resumeButton = label => js(`[...document.querySelectorAll('.levels-resume button')].find(b => b.textContent === '${label}').click()`);
+  await js(`document.querySelector('.bar-level').click()`);
+  await sleep(200);
+  check('the level button opens the level page, which offers to carry on', await js(`location.hash === '#/wordsearch/levels' && !!document.querySelector('.levels-resume') && document.querySelector('.stage').hidden`) && (await js(`document.querySelector('.levels-resume-text').textContent`)).startsWith('You have found 1 of'), await js(`(document.querySelector('.levels-resume-text') || {}).textContent`));
+  await shot('06b-ws-levels-resume');
+  await resumeButton('Keep Playing');
+  await sleep(200);
+  check('Keep Playing returns to the same puzzle', (await js(`document.querySelector('.ws-board').textContent`)) === gridBefore && (await foundCount()) === 1 && (await js(`location.hash`)) === '#/wordsearch/easy');
+  await js(`location.hash = '#/wordsearch/levels'`);
+  await sleep(200);
+  await js(`history.back()`);
+  await sleep(250);
+  check('the tablet Back button from the level page also returns to the same puzzle', (await js(`document.querySelector('.ws-board').textContent`)) === gridBefore && (await foundCount()) === 1);
+  await js(`location.hash = '#/wordsearch/levels'`);
+  await sleep(200);
+  await resumeButton('New Puzzle');
+  await sleep(250);
+  check('New Puzzle there starts afresh', (await js(`document.querySelector('.ws-board').textContent`)) !== gridBefore && (await foundCount()) === 0 && (await js(`location.hash`)) === '#/wordsearch/easy');
+  await js(`location.hash = '#/wordsearch/levels'`);
+  await sleep(200);
+  check('with nothing found yet, there is nothing to carry on', await js(`!document.querySelector('.levels-resume')`));
+  await js(`[...document.querySelectorAll('.level-btn')][2].click()`);
+  await sleep(250);
+  check('choosing another level plays it', (await js(`location.hash`)) === '#/wordsearch/hard' && (await levelLabel()) === 'Hard');
 
   // Keyboard play
   await go('#/wordsearch/easy');
@@ -373,17 +412,24 @@ try {
     const b = document.querySelector('.nh-board').getBoundingClientRect();
     const where = {};
     tiles.forEach(t => { const r = t.getBoundingClientRect(); where[t.textContent] = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-    return { count: tiles.length, numbers: tiles.map(t => +t.textContent).sort((a, b) => a - b), where, cell: tiles[0].offsetWidth,
+    const rects = tiles.map(t => t.getBoundingClientRect());
+    let overlap = false, outside = false;
+    rects.forEach((a, i) => {
+      if (a.left < b.left - 1 || a.right > b.right + 1 || a.top < b.top - 1 || a.bottom > b.bottom + 1) outside = true;
+      rects.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.width - 1) overlap = true; });
+    });
+    return { count: tiles.length, numbers: tiles.map(t => +t.textContent).sort((a, b) => a - b), where, cell: tiles[0].offsetWidth, overlap, outside,
       top: Math.round(b.top), bottom: b.bottom, vh: innerHeight, vw: innerWidth, scrollW: document.documentElement.scrollWidth,
       font: parseFloat(getComputedStyle(tiles[0]).fontSize) };
   })()`);
   const nhStatus = () => js(`document.querySelector('.status').textContent`);
   const nhTarget = () => js(`document.querySelector('.nh-target-number').textContent`);
-  for (const [levelKey, expected] of [['easy', 16], ['medium', 36], ['hard', 100]]) {
+  for (const [levelKey, expected] of [['easy', 12], ['medium', 20], ['hard', 30]]) {
     await go('#/numbers/' + levelKey);
     const st = await nhState();
     check(`numbers ${levelKey}: shows 1 to ${expected}, each exactly once`, st.count === expected && st.numbers.every((n, i) => n === i + 1));
-    check(`numbers ${levelKey}: squares are comfortable and everything fits`, st.cell >= 50 && st.font >= 19 && st.bottom <= st.vh && st.scrollW <= st.vw, `cell=${st.cell} font=${st.font} bottom=${st.bottom}`);
+    check(`numbers ${levelKey}: big round numbers, and everything fits`, st.cell >= 64 && st.font >= 19 && st.bottom <= st.vh && st.scrollW <= st.vw, `size=${st.cell} font=${st.font} bottom=${st.bottom}`);
+    check(`numbers ${levelKey}: scattered, but no two numbers overlap and none leaves the board`, !st.overlap && !st.outside);
     if (levelKey === 'hard') await shot('21-nh-hard-start');
 
     await click(st.where[5].x, st.where[5].y);
@@ -398,9 +444,11 @@ try {
       if (n === 3) {
         check(`numbers ${levelKey}: the big number shows what to find next`, (await nhTarget()) === '4' && (await nhStatus()) === 'Good. 3 of ' + expected + ' found.', await nhStatus());
         check(`numbers ${levelKey}: the hint clears once its number is found`, (await js(`document.querySelectorAll('.nh-tile.hinting').length`)) === 0);
-        await js(`document.querySelector('.bar > button').click()`);
-        check(`numbers ${levelKey}: New Game asks before clearing progress`, await js(`!!document.querySelector('.panel') && document.querySelector('.stage').hidden`));
-        await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Playing').click()`);
+        await js(`location.hash = '#/numbers/levels'`);
+        await sleep(200);
+        check(`numbers ${levelKey}: the level page offers to carry on`, await js(`!!document.querySelector('.levels-resume') && document.querySelector('.stage').hidden`));
+        await js(`[...document.querySelectorAll('.levels-resume button')].find(b => b.textContent === 'Keep Playing').click()`);
+        await sleep(200);
       }
       if (levelKey === 'medium' && n === 14) await shot('22-nh-medium-midgame');
     }
@@ -416,11 +464,11 @@ try {
   await go('#/');
   await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'हिंदी').click()`);
   await sleep(150);
-  check('Hindi: the whole home page switches', await js(`document.documentElement.lang === 'hi' && document.querySelector('.home-title').textContent === 'सनी गेम्स' && document.querySelector('.game-card-play').textContent === 'खेलिए'`));
+  check('Hindi: the whole home page switches', await js(`document.documentElement.lang === 'hi' && document.querySelector('.home-title').textContent === 'सनी गेम्स' && [...document.querySelectorAll('.tile-title')].every(n => /[\u0900-\u097F]/.test(n.textContent))`));
   await shot('30-hi-home');
   check('Hindi: words split into aksharas, not characters', await js(`JSON.stringify(['रिश्तेदार', 'इंद्रधनुष', 'बुज़ुर्ग', 'कठफोड़वा'].map(w => SG.wordsearch.split(w).join(' '))) === JSON.stringify(['रि श्ते दा र', 'इं द्र ध नु ष', 'बु ज़ु र्ग', 'क ठ फो ड़ वा'])`));
   check('Hindi: every word in every topic has at least 3 aksharas', await js(`SG.themes.hi.every(t => t.words.length >= 18 && t.words.every(w => SG.wordsearch.split(w).length >= 3))`));
-  await go('#/wordsearch');
+  await go('#/wordsearch/levels');
   await shot('31-hi-levels');
   for (const levelKey of ['easy', 'hard']) {
     await go('#/wordsearch/' + levelKey);
@@ -483,7 +531,7 @@ try {
   await go('#/');
   await shot('10-home-phone');
   check('phone: home has no sideways scroll', await js(`document.documentElement.scrollWidth <= innerWidth`));
-  await go('#/wordsearch');
+  await go('#/wordsearch/levels');
   await shot('11-levels-phone');
   await go('#/wordsearch/easy');
   s = await js(SOLVE);
@@ -531,7 +579,7 @@ try {
   await go('#/numbers/hard');
   {
     const st = await nhState();
-    check('phone: Number Hunt uses fewer, bigger numbers instead of tiny ones', st.count < 100 && st.count >= 30 && st.cell >= 50 && st.scrollW <= st.vw, `count=${st.count} cell=${st.cell}`);
+    check('phone: Number Hunt uses fewer, bigger numbers instead of tiny ones', st.count <= 30 && st.count >= 12 && st.cell >= 64 && !st.overlap && !st.outside && st.scrollW <= st.vw, `count=${st.count} size=${st.cell}`);
     check('phone: Show Me button is on screen', (await js(`document.querySelector('.nh-hint').getBoundingClientRect().bottom`)) <= 844);
     await touchDrag(st.where[1].x - 10, st.where[1].y - 8, st.where[1].x + 10, st.where[1].y + 9);
     check('phone: a drifting finger still counts on a number', (await nhTarget()) === '2');
@@ -548,15 +596,15 @@ try {
   await shot('16-ws-medium-tablet-landscape');
   check('tablet landscape: board fits', s.boardBottom <= s.vh && s.scrollW <= s.vw, `bottom=${s.boardBottom}`);
   check('right hand (default): word list is to the right of the grid', await js(`document.querySelector('.ws-info').getBoundingClientRect().left > document.querySelector('.ws-board').getBoundingClientRect().right`));
-  await go('#/');
+  await go('#/settings');
   await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Left').click()`);
-  await shot('16a-home-tablet-landscape');
+  await shot('16a-settings-tablet-landscape');
   await go('#/wordsearch/medium');
   check('left hand: word list and Hint move to the left of the grid', await js(`document.querySelector('.ws-hint').getBoundingClientRect().right < document.querySelector('.ws-board').getBoundingClientRect().left`));
   await shot('16b-ws-medium-left-handed');
-  await go('#/');
+  await go('#/settings');
   await js(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Right').click()`);
-  await go('#/tilematch');
+  await go('#/tilematch/levels');
   await shot('16c-tm-levels-tablet-landscape');
   await go('#/tilematch/hard');
   await shot('17-tm-hard-tablet-landscape');
@@ -580,17 +628,17 @@ try {
   await go('#/numbers/hard');
   {
     const st = await nhState();
-    check('tablet portrait: all 100 numbers at a comfortable size', st.count === 100 && st.cell >= 56 && st.scrollW <= st.vw, `count=${st.count} cell=${st.cell}`);
+    check('tablet portrait: all 30 numbers, big', st.count === 30 && st.cell >= 80 && !st.overlap && st.scrollW <= st.vw, `count=${st.count} size=${st.cell}`);
     await shot('19b-nh-hard-tablet-portrait');
   }
 
   // Back button behaviour
   await viewport(1280, 800, false);
   await go('#/');
-  await js(`location.hash = '#/tilematch'`); await sleep(150);
+  await js(`location.hash = '#/tilematch/levels'`); await sleep(150);
   await js(`location.hash = '#/tilematch/easy'`); await sleep(150);
   await js(`history.back()`); await sleep(250);
-  check('Back goes to the level screen, not out of the app', (await js(`location.hash`)) === '#/tilematch' && await js(`!!document.querySelector('.levels')`));
+  check('Back goes to the level screen, not out of the app', (await js(`location.hash`)) === '#/tilematch/levels' && await js(`!!document.querySelector('.levels')`));
   } // classic
 
   const statusText = () => js(`document.querySelector('.status').textContent`);
@@ -600,7 +648,7 @@ try {
   // ---------- Repeat the Pattern ----------
   if (want('pattern')) {
     await viewport(1280, 800, false);
-    await go('#/pattern');
+    await go('#/pattern/levels');
     await shot('40-pt-levels');
     check('pattern: three levels listed', (await js(`document.querySelectorAll('.level-btn').length`)) === 3);
 
@@ -683,31 +731,39 @@ try {
   // ---------- Sort into Baskets ----------
   if (want('sorting')) {
     // Which basket the picture on show belongs in (answer key from the game's own lists).
+    // The pictures on the table, each with the basket it belongs in.
     const SORT_STATE = `(() => {
-      const card = document.querySelector('.so-card');
       const names = [...document.querySelectorAll('.so-basket-name')].map(n => n.textContent);
       const keys = names.map(n => Object.keys(SG.sorting.groups).find(k => [SG.sorting.groups[k].en, SG.sorting.groups[k].hi].includes(n)));
-      const pic = card && card.querySelector('.so-card-pic').textContent;
-      const right = card ? keys.findIndex(k => SG.sorting.groups[k].items.some(i => i[0] === pic)) : -1;
-      const c = card && card.getBoundingClientRect();
+      const cards = [...document.querySelectorAll('.so-card')].map(card => {
+        const pic = card.querySelector('.so-card-pic').textContent;
+        const c = card.getBoundingClientRect();
+        return { x: c.left + c.width / 2, y: c.top + c.height / 2, size: c.width, bottom: c.bottom, right: keys.findIndex(k => SG.sorting.groups[k].items.some(i => i[0] === pic)) };
+      });
       const baskets = [...document.querySelectorAll('.so-basket')].map(b => { const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, bottom: r.bottom }; });
-      return { right, card: c && { x: c.left + c.width / 2, y: c.top + c.height / 2, size: c.width }, baskets, sorted: document.querySelectorAll('.so-contents span').length, vh: innerHeight, scrollW: document.documentElement.scrollWidth, vw: innerWidth };
+      return { cards, card: cards[0], right: cards.length ? cards[0].right : -1, baskets, sorted: document.querySelectorAll('.so-contents span').length, vh: innerHeight, scrollW: document.documentElement.scrollWidth, vw: innerWidth };
     })()`;
     const sortState = () => js(SORT_STATE);
 
     await viewport(1280, 800, false);
-    await go('#/sorting');
+    await go('#/sorting/levels');
     await shot('50-so-levels');
     for (const [levelKey, baskets, things] of [['easy', 2, 6], ['medium', 2, 10], ['hard', 3, 12]]) {
       await go('#/sorting/' + levelKey);
       let st = await sortState();
-      check(`sorting ${levelKey}: ${baskets} baskets, a big picture, all on screen`, st.baskets.length === baskets && st.card.size >= 130 && st.baskets.every(b => b.bottom <= st.vh) && st.scrollW <= st.vw, JSON.stringify({ size: st.card.size, bottoms: st.baskets.map(b => b.bottom) }));
+      check(`sorting ${levelKey}: ${baskets} baskets, four big pictures on the table, all on screen`, st.baskets.length === baskets && st.cards.length === 4 && st.cards.every(c => c.size >= 130) && st.baskets.every(b => b.bottom <= st.vh) && st.scrollW <= st.vw, JSON.stringify({ sizes: st.cards.map(c => c.size), bottoms: st.baskets.map(b => b.bottom) }));
       if (levelKey === 'easy') await shot('51-so-easy-start');
 
       if (levelKey !== 'medium') {
-        // A tap on the picture explains; a wrong basket sends it back; a second try shows the answer.
+        // A basket tapped first explains; a tap picks a picture up; a wrong basket sends it back;
+        // a second try shows the answer.
+        await click(st.baskets[0].x, st.baskets[0].y);
+        await sleep(100);
+        check(`sorting ${levelKey}: tapping a basket first says to pick a picture`, (await statusText()).startsWith('First tap a picture') && (await sortState()).sorted === 0, await statusText());
         await click(st.card.x, st.card.y);
-        check(`sorting ${levelKey}: tapping the picture says what to do`, (await statusText()).startsWith('Slide the picture'), await statusText());
+        check(`sorting ${levelKey}: tapping a picture picks it up and says what to do`, (await statusText()).includes('Now tap the basket') && await js(`document.querySelector('.so-card').classList.contains('so-selected')`), await statusText());
+        await click(st.card.x, st.card.y);
+        check(`sorting ${levelKey}: tapping it again keeps it picked up`, await js(`document.querySelector('.so-card').classList.contains('so-selected')`));
         const wrong = (st.right + 1) % baskets;
         await drag(st.card.x, st.card.y, st.baskets[wrong].x, st.baskets[wrong].y);
         await sleep(450);
@@ -724,10 +780,12 @@ try {
 
       for (let k = 0; k < things; k++) {
         st = await sortState();
-        const b = st.baskets[st.right];
-        if (k % 2) { await click(b.x, b.y); await click(b.x, b.y); } // a tap, with an accidental double tap
-        else await drag(st.card.x, st.card.y, b.x + 30, b.y - 20);
+        const card = st.cards[k % st.cards.length];
+        const b = st.baskets[card.right];
+        if (k % 2) { await click(card.x, card.y); await click(b.x, b.y); await click(b.x, b.y); } // tap, tap - with an accidental double tap
+        else await drag(card.x, card.y, b.x + 30, b.y - 20);
         await sleep(k % 2 ? 800 : 450);
+        if (k === 0) check(`sorting ${levelKey}: a new picture takes the sorted one's place on the table`, (await sortState()).cards.length === Math.min(4, things - 1));
         if ((await sortState()).sorted !== k + 1) { check(`sorting ${levelKey}: picture ${k + 1} sorted`, false, await statusText()); break; }
         if (levelKey === 'hard' && k === 6) await shot('53-so-hard-midgame');
       }
@@ -740,7 +798,7 @@ try {
     await go('#/sorting/hard');
     {
       const st = await sortState();
-      check('phone: three baskets and the picture all fit', st.baskets.every(b => b.bottom <= st.vh) && st.scrollW <= st.vw && st.card.size >= 130, JSON.stringify(st.baskets.map(b => b.bottom)));
+      check('phone: three baskets and the pictures all fit', st.baskets.every(b => b.bottom <= st.vh) && st.scrollW <= st.vw && st.cards.length >= 2 && st.cards.every(c => c.size >= 130), JSON.stringify({ cards: st.cards.map(c => c.size), bottoms: st.baskets.map(b => b.bottom) }));
       const b = st.baskets[st.right];
       await touchDrag(st.card.x, st.card.y, b.x, b.y);
       await sleep(450);
@@ -812,9 +870,18 @@ try {
       await shot('63-col-finished');
       await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Colouring').click()`);
       check('colouring: Keep Colouring goes back to the same picture', (await fillOf(points[0].part)) === '#8E44AD');
-      await js(`document.querySelector('.bar > button').click()`);
-      check('colouring: Start Again asks first', await js(`!!document.querySelector('.panel') && document.querySelector('.stage').hidden`), await js(`(document.querySelector('.panel-text') || {}).textContent`));
-      await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Start Again').click()`);
+      await js(`document.querySelector('.col-finish').click()`);
+      await js(`[...document.querySelectorAll('.panel a')].find(b => b.textContent === 'Choose Another Picture').click()`);
+      await sleep(250);
+      check('colouring: after finishing, Choose Another Picture goes straight to the pictures', await js(`location.hash === '#/colouring/levels' && !document.querySelector('.levels-resume') && document.querySelectorAll('.level-btn').length === 7`));
+      await go('#/colouring/flower');
+      check('colouring: the picture\'s name is top-right', (await levelLabel()) === 'Flower');
+      await js(`document.querySelector('.bar-level').click()`);
+      await sleep(200);
+      check('colouring: the picture page offers Keep Colouring, or Start Again', await js(`!!document.querySelector('.levels-resume') && document.querySelector('.stage').hidden`), await js(`(document.querySelector('.levels-resume-text') || {}).textContent`));
+      await shot('63a-col-resume');
+      await js(`[...document.querySelectorAll('.levels-resume button')].find(b => b.textContent === 'Start Again').click()`);
+      await sleep(250);
       check('colouring: Start Again gives a clean white picture', await js(`[...document.querySelectorAll('.col-picture [data-part]')].every(p => p.getAttribute('fill') === '#FFFFFF')`));
     }
 
@@ -872,7 +939,12 @@ try {
     await go('#/');
     await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'हिंदी').click()`);
     await sleep(150);
-    check('Hindi: every card and its tag is in Hindi', await js(`[...document.querySelectorAll('.game-card-title, .game-card-tag, .game-card-blurb')].every(n => /[\\u0900-\\u097F]/.test(n.textContent))`));
+    check('Hindi: every tile is named in Hindi', await js(`[...document.querySelectorAll('.tile-title')].every(n => /[\\u0900-\\u097F]/.test(n.textContent))`));
+    await js(`localStorage.removeItem('sg.seen.sorting')`);
+    await go('#/sorting');
+    check('Hindi: the first-time page and its Start button are in Hindi', (await js(`document.querySelector('.intro-start').textContent`)) === 'शुरू कीजिए');
+    await shot('69-hi-intro');
+    await seenAll();
     await go('#/pattern/easy');
     check('Hindi pattern: speaks Hindi', (await statusText()).includes('देखिए') && (await js(`document.querySelector('.pt-watch').textContent`)) === 'देखिए');
     await go('#/sorting/hard');
@@ -896,9 +968,12 @@ try {
       const out = [];
       for (const lang of ['en', 'hi']) {
         SG.setLang(lang);
+        for (const k of ['start', 'settings', 'levels.playing', 'levels.resumeTitle', 'levels.resumeText', 'bar.level', 'so.pick', 'so.tapFirst', 'so.table']) {
+          let v = SG.t(k, 'x');
+          if (v === undefined || (lang === 'hi' && !/[\\u0900-\\u097F]/.test(v))) out.push(lang + ':' + k);
+        }
         for (const g of SG.games) {
-          for (const k of ['title', 'blurb', 'howto']) if (SG.t(g.text + '.' + k) === undefined) out.push(lang + ':' + g.text + '.' + k);
-          if (SG.t('cat.' + g.category) === undefined) out.push(lang + ':cat.' + g.category);
+          for (const k of ['title', 'howto']) if (SG.t(g.text + '.' + k) === undefined) out.push(lang + ':' + g.text + '.' + k);
           for (const l of Object.keys(g.levels)) if (!g.detail(l)) out.push(lang + ':' + g.key + ' detail ' + l);
         }
       }
@@ -914,7 +989,9 @@ try {
     const listed = await js(`fetch('sw.js').then(r => r.text())`);
     const needed = await js(`[...document.querySelectorAll('script[src], link[rel=stylesheet], link[rel=manifest], link[rel=apple-touch-icon]')].map(n => n.getAttribute('src') || n.getAttribute('href'))`);
     const manifest = await js(`fetch('manifest.webmanifest').then(r => r.json())`);
-    const unlisted = needed.concat(manifest.icons.map(i => i.src)).filter(f => !listed.includes(`'${f}'`));
+    const fonts = (await js(`fetch('css/style.css').then(r => r.text())`)).match(/fonts\/[\w-]+\.woff2/g) || [];
+    const unlisted = needed.concat(manifest.icons.map(i => i.src), fonts).filter(f => !listed.includes(`'${f}'`));
+    check('the bundled font draws both English and Hindi', fonts.length === 2 && await js(`document.fonts.load('700 22px "Baloo 2"', 'Aक').then(() => document.fonts.check('700 22px "Baloo 2"', 'A') && document.fonts.check('700 22px "Baloo 2"', 'क'))`));
     check('offline: every file the app loads is in the offline list', unlisted.length === 0, unlisted.join());
     await go('#/');
     const ready = await js(`Promise.race([navigator.serviceWorker.ready.then(() => true), new Promise(r => setTimeout(() => r(false), 8000))])`);
@@ -923,7 +1000,7 @@ try {
     await send('Network.enable');
     await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await go('#/');
-    check('offline: the home page opens with no internet', (await js(`document.querySelectorAll('.game-card').length`)) === (await js(`SG.games.length`)) && (await js(`SG.games.length`)) >= 6);
+    check('offline: the home page opens with no internet', (await js(`document.querySelectorAll('.tile').length`)) === (await js(`SG.games.length`)) && (await js(`SG.games.length`)) >= 6);
     await go('#/colouring/kite');
     check('offline: a game opens with no internet', await js(`!!document.querySelector('.col-picture')`));
     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
@@ -935,7 +1012,7 @@ try {
       await viewport(w, h, mobile);
       await go('#/');
       await shot('80-home-' + name);
-      check(`home ${name}: every game card, no sideways scroll`, (await js(`document.querySelectorAll('.game-card').length === SG.games.length`)) && await noSideScroll());
+      check(`home ${name}: every game tile, no sideways scroll`, (await js(`document.querySelectorAll('.tile').length === SG.games.length`)) && await noSideScroll());
     }
     await viewport(1280, 800, false);
   }

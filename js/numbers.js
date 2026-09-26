@@ -1,4 +1,4 @@
-// Number Hunt: the numbers are scattered over a grid; tap them in order - 1, 2, 3...
+// Number Hunt: big round number tokens are scattered over the screen; tap them in order - 1, 2, 3...
 // It exercises scanning, attention and counting, and makes the hand reach all over the screen.
 //
 // No timer. Tapping some other number is never "wrong": the status line just says which number
@@ -9,23 +9,26 @@
   const el = SG.el;
 
   const LEVELS = {
-    easy: { count: 16 },
-    medium: { count: 36 },
-    hard: { count: 100 }
+    easy: { count: 12 },
+    medium: { count: 20 },
+    hard: { count: 30 }
   };
 
-  const MIN_CELL = 50;  // px. If the full set of numbers would need smaller squares than this on
-  const MAX_CELL = 130; //     the player's screen, the game uses fewer numbers instead.
-  const SMALLER_SETS = [80, 64, 60, 50, 48, 40, 36, 30, 25, 20, 16, 12, 9];
-  const GAP = 8;
+  // Each token sits somewhere inside its own cell of an invisible grid, so they look scattered
+  // but can never overlap each other or run off the screen.
+  const MIN_CELL = 78;   // px. If the full set of numbers would need smaller cells than this on
+  const MAX_CELL = 170;  //     the player's screen, the game uses fewer numbers instead.
+  const MAX_TOKEN = 128;
+  const TOKEN_SHARE = 0.84; // of the cell; the rest is room to scatter
+  const SMALLER_SETS = [24, 20, 16, 12, 9];
+  const GAP = 10;
   const WIN_PAUSE_MS = 2200;
   const SIDE_BY_SIDE = '(min-width: 820px) and (orientation: landscape)'; // keep in step with style.css
   const SIDE_WIDTH = 340 + 28;
 
-  function mount(stage, levelKey, hooks) {
+  function mount(stage, levelKey) {
     const level = LEVELS[levelKey];
     const t = SG.t;
-    hooks = hooks || {};
 
     let count, next, tiles, hinted, done;
     const timers = SG.timers();
@@ -77,9 +80,10 @@
       const numbers = [];
       for (let n = 1; n <= count; n++) numbers.push(n);
       tiles = {};
-      SG.shuffle(numbers).forEach(function (n) {
+      SG.shuffle(numbers).forEach(function (n, i) {
         const button = el('button', { class: 'nh-tile pressable', type: 'button', text: String(n) });
-        const tile = { n: n, button: button, done: false };
+        // Where in its cell this token sits, from -1 (one edge) to 1 (the other). Fixed for the game.
+        const tile = { n: n, i: i, button: button, done: false, ox: Math.random() * 2 - 1, oy: Math.random() * 2 - 1 };
         SG.onTap(button, function () { tapTile(tile); });
         tiles[n] = tile;
         board.appendChild(button);
@@ -90,10 +94,18 @@
       if (!board) return;
       const space = room();
       const grid = SG.bestGrid(count, space.w, space.h, GAP);
-      const cell = Math.floor(SG.clamp(grid.cell, 40, MAX_CELL));
-      board.style.setProperty('--cols', grid.cols);
-      board.style.setProperty('--cell', cell + 'px');
-      board.style.setProperty('--gap', GAP + 'px');
+      const cell = Math.floor(SG.clamp(grid.cell, 56, MAX_CELL));
+      const token = Math.min(Math.round(cell * TOKEN_SHARE), MAX_TOKEN);
+      const slack = (cell - token) / 2;
+      board.style.width = (grid.cols * cell + (grid.cols - 1) * GAP) + 'px';
+      board.style.height = (grid.rows * cell + (grid.rows - 1) * GAP) + 'px';
+      board.style.setProperty('--token', token + 'px');
+      Object.keys(tiles).forEach(function (n) {
+        const tile = tiles[n];
+        const col = tile.i % grid.cols, row = Math.floor(tile.i / grid.cols);
+        tile.button.style.left = Math.round(col * (cell + GAP) + slack * (1 + tile.ox)) + 'px';
+        tile.button.style.top = Math.round(row * (cell + GAP) + slack * (1 + tile.oy)) + 'px';
+      });
     }
 
     function tapTile(tile) {
@@ -124,8 +136,7 @@
       }
       targetEl.textContent = String(next);
       statusEl.textContent = t('nh.good', next - 1, count);
-      if ((next - 1) % 10 === 0) SG.sound.found();
-      else SG.sound.step();
+      SG.sound.good(next - 2);
     }
 
     // Circles the next number. Like every hint in the app it simply stays until it is used.
@@ -139,11 +150,13 @@
     }
 
     function showWin() {
-      const panel = SG.winPanel(t('nh.win', count), null, newGame, '#/numbers');
+      const trophies = el('div', { class: 'nh-trophies panel-trophies', 'aria-hidden': 'true' }, Object.keys(tiles).map(function (n) {
+        return el('span', { text: n });
+      }));
+      const panel = SG.winPanel(t('nh.win', count), trophies, newGame, '#/numbers/levels');
       stage.textContent = '';
       board = null;
       stage.appendChild(panel);
-      if (hooks.onWin) hooks.onWin();
       panel.querySelector('.panel-title').focus();
     }
 
@@ -158,7 +171,6 @@
       renderTiles();
       statusEl.textContent = t('nh.start', count);
       layout();
-      if (hooks.onStart) hooks.onStart();
     }
 
     window.addEventListener('resize', layout);
@@ -177,27 +189,44 @@
     };
   }
 
-  function art() {
-    // 1 and 2 already found; 3 is next.
-    return el('div', { class: 'art art-nh', 'aria-hidden': 'true' }, ['5', '', '3', '', '6', '4'].map(function (n) {
-      return el('span', { class: n ? '' : 'done', text: n });
-    }));
+  // Round number tokens: 1 and 2 already found, 3 circled as the one to find.
+  function illustration() {
+    const svg = SG.svg;
+    const parts = [];
+    function token(cx, cy, n, state) {
+      const r = state === 'find' ? 15 : 13;
+      if (state === 'done') {
+        parts.push(svg('circle', { cx: cx, cy: cy, r: r, fill: '#D7EFDD', stroke: '#1F6B3F', 'stroke-width': 2.5 }));
+      } else {
+        parts.push(svg('circle', { cx: cx, cy: cy + 3, r: r, class: 'fill-deep' }));
+        parts.push(svg('circle', { cx: cx, cy: cy, r: r, fill: '#FFFFFF', class: 'stroke-deep', 'stroke-width': 3 }));
+      }
+      if (state === 'find') parts.push(svg('circle', { cx: cx, cy: cy, r: r + 6, fill: 'none', class: 'stroke-deep', 'stroke-width': 2.5, 'stroke-dasharray': '4.5 3.5' }));
+      parts.push(svg('text', {
+        x: cx, y: cy + 0.5, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+        'font-size': state === 'find' ? 18 : 15, 'font-weight': 800, fill: state === 'done' ? '#1F6B3F' : '#1F2A44'
+      }, [document.createTextNode(String(n))]));
+    }
+    token(20, 22, 1, 'done');
+    token(48, 70, 2, 'done');
+    token(98, 20, 4);
+    token(20, 64, 6);
+    token(100, 66, 5);
+    token(64, 36, 3, 'find');
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 
+  // One round dot per number.
   function preview(levelKey) {
-    const count = LEVELS[levelKey].count;
-    const grid = SG.squares(count, 'level-art-grid');
-    grid.style.setProperty('--n', Math.sqrt(count));
-    return grid;
+    return SG.squares(LEVELS[levelKey].count, 'level-art-tokens');
   }
 
   SG.registerGame({
     key: 'numbers',
     text: 'nh',
-    category: 'look',
     levels: LEVELS,
     mount: mount,
-    art: art,
+    illustration: illustration,
     preview: preview,
     detail: function (levelKey) { return SG.t('nh.level', LEVELS[levelKey].count); }
   });

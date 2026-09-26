@@ -175,13 +175,12 @@
 
   // ---------- The game ----------
 
-  function mount(stage, levelKey, hooks) {
+  function mount(stage, levelKey) {
     const level = LEVELS[levelKey];
     const t = SG.t;
     const script = SCRIPTS[SG.lang] || SCRIPTS.en;
     const themes = SG.themes[SG.lang] || SG.themes.en;
     const MIN_CELL = script.minCell; // px. Below this, letters drop under the 19px reading floor.
-    hooks = hooks || {};
 
     // On a narrow phone a 12 x 12 grid would make the letters too small to read, so the grid is
     // capped to what fits at a readable size (and carries a couple fewer words to match).
@@ -496,7 +495,7 @@
         timers.later(showWin, WIN_PAUSE_MS);
       } else {
         statusEl.textContent = t('ws.foundWord', p.word, left);
-        SG.sound.found();
+        SG.sound.good(foundCount);
       }
     }
 
@@ -505,12 +504,11 @@
         puzzle.placements.map(wordChip));
       const panel = SG.winPanel(
         t('ws.win', puzzle.placements.length, puzzle.theme),
-        trophies, newGame, '#/wordsearch'
+        trophies, newGame, '#/wordsearch/levels'
       );
       stage.textContent = '';
       board = null;
       stage.appendChild(panel);
-      if (hooks.onWin) hooks.onWin();
       panel.querySelector('.panel-title').focus();
     }
 
@@ -626,7 +624,6 @@
       usingKeys = false;
       render();
       layout();
-      if (hooks.onStart) hooks.onStart();
     }
 
     window.addEventListener('resize', layout);
@@ -646,20 +643,30 @@
     };
   }
 
-  // ---------- Pictures for the home card and level buttons ----------
+  // ---------- Pictures for the home tile and level buttons ----------
 
-  function art() {
-    // The same picture in each script: a small letter grid with one word highlighted.
-    const letters = SG.lang === 'hi'
-      ? ['प', 'सू', 'ल', 'न', 'ग', 'की', 'र', 'मा', 'क', 'म', 'ल', 'टा']
-      : 'PSUNLOKATREE'.split('');
-    const wordLength = SG.lang === 'hi' ? 3 : 4; // कमल / TREE, along the bottom row
-    return el('div', { class: 'art art-ws', 'aria-hidden': 'true' }, letters.map(function (letter, i) {
-      const at = i - 8;
-      const lit = at >= 0 && at < wordLength;
-      const cls = lit ? 'hl' + (at === 0 ? ' hl-start' : '') + (at === wordLength - 1 ? ' hl-end' : '') : '';
-      return el('span', { class: cls, text: letter });
-    }));
+  // A card of letters with one word highlighted, and a magnifying glass. The same in each script.
+  function illustration() {
+    const hi = SG.lang === 'hi';
+    const rows = hi
+      ? [['प', 'सू', 'ल', 'न'], ['क', 'म', 'ल', 'टा'], ['ग', 'की', 'र', 'मा']]
+      : [['P', 'S', 'U', 'N'], ['T', 'R', 'E', 'E'], ['L', 'O', 'K', 'A']];
+    const word = hi ? 3 : 4; // कमल / TREE, along the middle row
+    const parts = [
+      svg('rect', { x: 5, y: 5, width: 92, height: 76, rx: 13, fill: '#FFFFFF', class: 'stroke-deep', 'stroke-width': 3 }),
+      svg('rect', { x: 10, y: 32, width: 21 * word + 1, height: 23, rx: 11.5, fill: '#FFD54F', stroke: '#946C00', 'stroke-width': 2 })
+    ];
+    rows.forEach(function (row, r) {
+      row.forEach(function (letter, c) {
+        parts.push(svg('text', {
+          x: 21 + c * 21, y: 21 + r * 22.5, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+          'font-size': hi ? 14 : 16, 'font-weight': 800, fill: '#1F2A44'
+        }, [document.createTextNode(letter)]));
+      });
+    });
+    parts.push(svg('circle', { cx: 94, cy: 71, r: 13, fill: '#FFFFFF', 'fill-opacity': 0.55, class: 'stroke-deep', 'stroke-width': 4.5 }));
+    parts.push(svg('path', { d: 'M103.5 80.5L112 89', class: 'stroke-deep', 'stroke-width': 7, 'stroke-linecap': 'round' }));
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 
   // A bigger grid with more (and more varied) highlighted words as it gets harder.
@@ -687,10 +694,9 @@
   SG.registerGame({
     key: 'wordsearch',
     text: 'ws',
-    category: 'words',
     levels: LEVELS,
     mount: mount,
-    art: art,
+    illustration: illustration,
     preview: preview,
     detail: function (levelKey) { return SG.t('ws.level.' + levelKey); }
   });
