@@ -27,9 +27,10 @@ const EDGE = [
 if (!EDGE) throw new Error('Could not find Edge or Chrome - add its path to the list at the top of this file.');
 
 // A tiny static file server for the app, on any free port.
-const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript' };
+const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = createServer(async (req, res) => {
-  const file = resolve(ROOT, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
+  let file = resolve(ROOT, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
+  if (file === ROOT) file = join(ROOT, 'index.html'); // like a real web host
   try {
     if (!file.startsWith(ROOT + sep)) throw new Error('outside the app folder');
     const body = await readFile(file);
@@ -45,6 +46,8 @@ const BASE = `http://127.0.0.1:${server.address().port}/index.html`;
 const PORT = 9333;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// ONLY=pattern,sorting node tests/playtest.mjs   runs just those parts (see the want(...) blocks below).
+const want = part => !process.env.ONLY || process.env.ONLY.split(',').includes(part);
 const results = [];
 const problems = [];
 function check(name, ok, extra) {
@@ -171,13 +174,15 @@ try {
   await send('Log.enable');
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
 
-  // ---------- Desktop ----------
   await viewport(1280, 800, false);
   await go('#/');
   await js(`localStorage.clear()`);
+
+  if (want('classic')) {
+  // ---------- Desktop ----------
   await go('#/');
   await shot('01-home-desktop');
-  check('home shows three games', (await js(`document.querySelectorAll('.game-card').length`)) === 3);
+  check('home shows every game, each with what it is good for', await js(`document.querySelectorAll('.game-card').length === SG.games.length && SG.games.length >= 3 && [...document.querySelectorAll('.game-card-tag')].every(t => t.textContent.trim().length > 2)`));
   check('home offers English and Hindi, each in its own script', await js(`['English', 'हिंदी'].every(name => [...document.querySelectorAll('.chooser button')].some(b => b.textContent === name))`));
 
   await go('#/wordsearch');
@@ -586,6 +591,354 @@ try {
   await js(`location.hash = '#/tilematch/easy'`); await sleep(150);
   await js(`history.back()`); await sleep(250);
   check('Back goes to the level screen, not out of the app', (await js(`location.hash`)) === '#/tilematch' && await js(`!!document.querySelector('.levels')`));
+  } // classic
+
+  const statusText = () => js(`document.querySelector('.status').textContent`);
+  const centresOf = sel => js(`[...document.querySelectorAll(${JSON.stringify(sel)})].map(t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })`);
+  const noSideScroll = () => js(`document.documentElement.scrollWidth <= innerWidth`);
+
+  // ---------- Repeat the Pattern ----------
+  if (want('pattern')) {
+    await viewport(1280, 800, false);
+    await go('#/pattern');
+    await shot('40-pt-levels');
+    check('pattern: three levels listed', (await js(`document.querySelectorAll('.level-btn').length`)) === 3);
+
+    // Presses Watch and notes which pads light up, the way a player would.
+    const watchAndRecord = async () => {
+      await js(`document.querySelector('.pt-watch').click()`);
+      const seen = [];
+      let prev = -1;
+      for (let i = 0; i < 200; i++) {
+        const state = await js(`({ lit: [...document.querySelectorAll('.pt-pad')].findIndex(p => p.classList.contains('lit')), showing: !!document.querySelector('.pt-showing') })`);
+        if (state.lit !== prev && state.lit !== -1) seen.push(state.lit);
+        prev = state.lit;
+        if (!state.showing) break;
+        await sleep(60);
+      }
+      return seen;
+    };
+
+    for (const [levelKey, pads, from, to] of [['easy', 4, 2, 5], ['hard', 6, 3, 7]]) {
+      await go('#/pattern/' + levelKey);
+      const info = await js(`(() => { const p = [...document.querySelectorAll('.pt-pad')]; const w = document.querySelector('.pt-watch').getBoundingClientRect(); return { count: p.length, size: p[0].offsetWidth, watchBottom: w.bottom, vh: innerHeight }; })()`);
+      check(`pattern ${levelKey}: ${pads} big pads, and Watch is on screen`, info.count === pads && info.size >= 90 && info.watchBottom <= info.vh, JSON.stringify(info));
+      check(`pattern ${levelKey}: opens by saying what to do`, (await statusText()).includes('Watch'), await statusText());
+      if (levelKey === 'easy') await shot('41-pt-easy-start');
+      const centres = await centresOf('.pt-pad');
+      await click(centres[0].x, centres[0].y);
+      check(`pattern ${levelKey}: a pad pressed before watching only plays its note`, (await js(`document.querySelectorAll('.pt-dots .on').length`)) === 0);
+
+      let seq = await watchAndRecord();
+      check(`pattern ${levelKey}: shows a pattern of ${from}, then hands over`, seq.length === from && (await statusText()).startsWith('Your turn'), `seen=${seq} status=${await statusText()}`);
+      // A slip first: it is met gently and nothing is lost.
+      const wrong = (seq[0] + 1) % pads;
+      await click(centres[wrong].x, centres[wrong].y);
+      check(`pattern ${levelKey}: a slip invites another look, with no "wrong"`, (await statusText()).startsWith('Not quite'), await statusText());
+      if (levelKey === 'easy') { await sleep(100); await shot('42-pt-slip'); }
+      seq = await watchAndRecord();
+      check(`pattern ${levelKey}: Watch Again replays the same length`, seq.length === from);
+
+      for (let len = from; len <= to; len++) {
+        if (len > from) seq = await watchAndRecord();
+        if (seq.length !== len) { check(`pattern ${levelKey}: pattern of ${len} shown`, false, 'seen ' + seq); break; }
+        for (let k = 0; k < seq.length; k++) {
+          await click(centres[seq[k]].x, centres[seq[k]].y);
+          if (k === 0) await click(centres[seq[k]].x, centres[seq[k]].y); // an accidental double tap is ignored
+          await sleep(80);
+        }
+        if (len === from + 1 && levelKey === 'easy') await shot('43-pt-round-done');
+        if (len < to && !(await statusText()).startsWith('Well remembered')) check(`pattern ${levelKey}: round ${len} completes`, false, await statusText());
+      }
+      await sleep(2700);
+      check(`pattern ${levelKey}: finish screen appears after the longest pattern`, await js(`!!document.querySelector('.panel-win')`), await statusText().catch(() => ''));
+      if (levelKey === 'easy') await shot('44-pt-win');
+    }
+
+    // Taps while the pattern is being shown change nothing
+    await go('#/pattern/medium');
+    {
+      const centres = await centresOf('.pt-pad');
+      await js(`document.querySelector('.pt-watch').click()`);
+      await sleep(700);
+      await click(centres[1].x, centres[1].y);
+      check('pattern: tapping during the show changes nothing', (await js(`document.querySelectorAll('.pt-dots .on').length`)) === 0 && (await statusText()) === 'Watch the pads…');
+    }
+
+    await viewport(390, 844, true);
+    await go('#/pattern/hard');
+    {
+      const info = await js(`(() => { const p = [...document.querySelectorAll('.pt-pad')]; const w = document.querySelector('.pt-watch').getBoundingClientRect(); return { size: p[0].offsetWidth, watchBottom: w.bottom, vh: innerHeight }; })()`);
+      check('phone: six pads stay big and Watch is on screen', info.size >= 90 && info.watchBottom <= info.vh, JSON.stringify(info));
+      check('phone: pattern has no sideways scroll', await noSideScroll());
+      await shot('45-pt-hard-phone');
+    }
+    await viewport(1024, 768, true);
+    await go('#/pattern/hard');
+    await shot('46-pt-hard-tablet-landscape');
+    check('tablet: Watch is on screen', (await js(`document.querySelector('.pt-watch').getBoundingClientRect().bottom`)) <= 768);
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- Sort into Baskets ----------
+  if (want('sorting')) {
+    // Which basket the picture on show belongs in (answer key from the game's own lists).
+    const SORT_STATE = `(() => {
+      const card = document.querySelector('.so-card');
+      const names = [...document.querySelectorAll('.so-basket-name')].map(n => n.textContent);
+      const keys = names.map(n => Object.keys(SG.sorting.groups).find(k => [SG.sorting.groups[k].en, SG.sorting.groups[k].hi].includes(n)));
+      const pic = card && card.querySelector('.so-card-pic').textContent;
+      const right = card ? keys.findIndex(k => SG.sorting.groups[k].items.some(i => i[0] === pic)) : -1;
+      const c = card && card.getBoundingClientRect();
+      const baskets = [...document.querySelectorAll('.so-basket')].map(b => { const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, bottom: r.bottom }; });
+      return { right, card: c && { x: c.left + c.width / 2, y: c.top + c.height / 2, size: c.width }, baskets, sorted: document.querySelectorAll('.so-contents span').length, vh: innerHeight, scrollW: document.documentElement.scrollWidth, vw: innerWidth };
+    })()`;
+    const sortState = () => js(SORT_STATE);
+
+    await viewport(1280, 800, false);
+    await go('#/sorting');
+    await shot('50-so-levels');
+    for (const [levelKey, baskets, things] of [['easy', 2, 6], ['medium', 2, 10], ['hard', 3, 12]]) {
+      await go('#/sorting/' + levelKey);
+      let st = await sortState();
+      check(`sorting ${levelKey}: ${baskets} baskets, a big picture, all on screen`, st.baskets.length === baskets && st.card.size >= 130 && st.baskets.every(b => b.bottom <= st.vh) && st.scrollW <= st.vw, JSON.stringify({ size: st.card.size, bottoms: st.baskets.map(b => b.bottom) }));
+      if (levelKey === 'easy') await shot('51-so-easy-start');
+
+      if (levelKey !== 'medium') {
+        // A tap on the picture explains; a wrong basket sends it back; a second try shows the answer.
+        await click(st.card.x, st.card.y);
+        check(`sorting ${levelKey}: tapping the picture says what to do`, (await statusText()).startsWith('Slide the picture'), await statusText());
+        const wrong = (st.right + 1) % baskets;
+        await drag(st.card.x, st.card.y, st.baskets[wrong].x, st.baskets[wrong].y);
+        await sleep(450);
+        check(`sorting ${levelKey}: a wrong basket sends the picture back, gently`, (await statusText()).includes('is not the basket') && (await sortState()).sorted === 0, await statusText());
+        if (levelKey === 'hard') await shot('52-so-wrong');
+        await click(st.baskets[wrong].x, st.baskets[wrong].y);
+        await sleep(100);
+        check(`sorting ${levelKey}: a second miss shows the right basket`, (await statusText()).includes('is circled') && (await js(`document.querySelectorAll('.so-basket.so-hint').length`)) === 1, await statusText());
+        // Let go far from any basket: it floats back and nothing else happens.
+        await drag(st.card.x, st.card.y, st.card.x + 300, st.card.y - 150);
+        await sleep(450);
+        check(`sorting ${levelKey}: letting go away from the baskets changes nothing`, (await sortState()).sorted === 0);
+      }
+
+      for (let k = 0; k < things; k++) {
+        st = await sortState();
+        const b = st.baskets[st.right];
+        if (k % 2) { await click(b.x, b.y); await click(b.x, b.y); } // a tap, with an accidental double tap
+        else await drag(st.card.x, st.card.y, b.x + 30, b.y - 20);
+        await sleep(k % 2 ? 800 : 450);
+        if ((await sortState()).sorted !== k + 1) { check(`sorting ${levelKey}: picture ${k + 1} sorted`, false, await statusText()); break; }
+        if (levelKey === 'hard' && k === 6) await shot('53-so-hard-midgame');
+      }
+      await sleep(2300);
+      check(`sorting ${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`));
+      if (levelKey === 'hard') await shot('54-so-win');
+    }
+
+    await viewport(390, 844, true);
+    await go('#/sorting/hard');
+    {
+      const st = await sortState();
+      check('phone: three baskets and the picture all fit', st.baskets.every(b => b.bottom <= st.vh) && st.scrollW <= st.vw && st.card.size >= 130, JSON.stringify(st.baskets.map(b => b.bottom)));
+      const b = st.baskets[st.right];
+      await touchDrag(st.card.x, st.card.y, b.x, b.y);
+      await sleep(450);
+      check('phone: sliding with a finger sorts a picture', (await sortState()).sorted === 1);
+      check('phone: the page did not scroll while sliding', (await js(`pageYOffset`)) === 0);
+      await shot('55-so-hard-phone');
+    }
+    await viewport(1024, 768, true);
+    await go('#/sorting/medium');
+    await shot('56-so-medium-tablet');
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- Colouring Book ----------
+  if (want('colouring')) {
+    // A point inside each tap target where that part really is on top (found by probing the page).
+    const PART_POINTS = `(() => [...document.querySelectorAll('.col-picture [data-part][tabindex]')].map(p => {
+      const r = p.getBoundingClientRect();
+      for (let fy = 0.5; fy < 1; fy += 0.07) for (const sy of [1, -1]) for (let fx = 0.5; fx < 1; fx += 0.07) for (const sx of [1, -1]) {
+        const x = r.left + r.width * (0.5 + sx * (fx - 0.5)), y = r.top + r.height * (0.5 + sy * (fy - 0.5));
+        if (document.elementFromPoint(x, y) === p) return { part: p.dataset.part, x, y };
+      }
+      return { part: p.dataset.part, missing: true };
+    }))()`;
+    const fillOf = part => js(`document.querySelector('.col-picture [data-part="${part}"]').getAttribute('fill')`);
+    const pickColour = name => js(`[...document.querySelectorAll('.col-swatch')].find(b => b.getAttribute('aria-label') === '${name}').click()`);
+
+    await viewport(1280, 800, false);
+    await go('#/colouring');
+    check('colouring: seven pictures to choose from', (await js(`document.querySelectorAll('.level-btn').length`)) === 7 && (await js(`document.querySelector('.levels-title').textContent`)) === 'Choose a picture');
+    await shot('60-col-chooser');
+
+    await go('#/colouring/flower');
+    {
+      const info = await js(`(() => { const p = document.querySelector('.col-picture').getBoundingClientRect(); const s = [...document.querySelectorAll('.col-swatch')].map(b => b.offsetWidth); const f = document.querySelector('.col-finish').getBoundingClientRect(); return { pic: p.width, bottom: Math.max(p.bottom, f.bottom), minSwatch: Math.min(...s), vh: innerHeight, scrollW: document.documentElement.scrollWidth, vw: innerWidth }; })()`);
+      check('colouring: a big picture, big colours, all on screen', info.pic >= 400 && info.minSwatch >= 64 && info.bottom <= info.vh && info.scrollW <= info.vw, JSON.stringify(info));
+      check('colouring: says which colour is chosen', (await statusText()) === 'Colour: Red. Tap part of the picture.', await statusText());
+      const points = await js(PART_POINTS);
+      check('colouring: every part of the flower can be tapped', points.every(p => !p.missing), JSON.stringify(points.filter(p => p.missing)));
+      const colours = ['Yellow', 'Saffron', 'Pink', 'Green', 'Sky blue'];
+      for (let i = 0; i < points.length; i++) {
+        if (i % 3 === 0) await pickColour(colours[(i / 3) % colours.length]);
+        await click(points[i].x, points[i].y);
+      }
+      const unfilled = [];
+      for (const p of points) if ((await fillOf(p.part)) === '#FFFFFF') unfilled.push(p.part);
+      check('colouring: tapping colours each part', unfilled.length === 0, unfilled.join());
+      await shot('61-col-flower-coloured');
+
+      // Undo takes back the last colour only.
+      const last = points[points.length - 1].part;
+      await js(`document.querySelector('.col-undo').click()`);
+      check('colouring: Undo takes back the last colour', (await fillOf(last)) === '#FFFFFF' && (await fillOf(points[0].part)) !== '#FFFFFF');
+      // A drifting finger colours the part it came down on, not the one it slid to.
+      await pickColour('Purple');
+      await touchDrag(points[0].x, points[0].y, points[1].x, points[1].y);
+      check('colouring: a sliding finger colours the part it pressed first', (await fillOf(points[0].part)) === '#8E44AD' && (await fillOf(points[1].part)) !== '#8E44AD');
+
+      // Kept between visits, and shown on the chooser.
+      await go('#/colouring/flower');
+      check('colouring: the picture is kept when you come back', (await fillOf(points[0].part)) === '#8E44AD');
+      await go('#/colouring');
+      check('colouring: the chooser shows the picture as it was left', await js(`[...document.querySelectorAll('.level-btn')][0].querySelector('[fill="#8E44AD"]') !== null && document.querySelectorAll('.level-detail')[0].textContent.includes('Carries on')`));
+      await shot('62-col-chooser-gallery');
+
+      await go('#/colouring/flower');
+      await js(`document.querySelector('.col-finish').click()`);
+      check('colouring: "I am Finished" shows the picture, saved', await js(`!!document.querySelector('.panel-win .col-finished') && document.querySelector('.panel-title').textContent === 'Beautiful!'`));
+      await shot('63-col-finished');
+      await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Colouring').click()`);
+      check('colouring: Keep Colouring goes back to the same picture', (await fillOf(points[0].part)) === '#8E44AD');
+      await js(`document.querySelector('.bar > button').click()`);
+      check('colouring: Start Again asks first', await js(`!!document.querySelector('.panel') && document.querySelector('.stage').hidden`), await js(`(document.querySelector('.panel-text') || {}).textContent`));
+      await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Start Again').click()`);
+      check('colouring: Start Again gives a clean white picture', await js(`[...document.querySelectorAll('.col-picture [data-part]')].every(p => p.getAttribute('fill') === '#FFFFFF')`));
+    }
+
+    // Every picture: every part reachable by a tap at desktop and phone size.
+    const pictures = await js(`Object.keys(SG.games.find(g => g.key === 'colouring').levels)`);
+    for (const [w, h, mobile] of [[1280, 800, false], [390, 844, true]]) {
+      await viewport(w, h, mobile);
+      const bad = [];
+      for (const key of pictures) {
+        await go('#/colouring/' + key);
+        const points = await js(PART_POINTS);
+        points.filter(p => p.missing).forEach(p => bad.push(key + '.' + p.part));
+      }
+      check(`colouring ${w}px: every part of every picture can be tapped`, bad.length === 0, bad.join());
+    }
+
+    // The rangoli colours matching petals together.
+    await viewport(1280, 800, false);
+    await go('#/colouring/rangoli');
+    {
+      const points = await js(PART_POINTS);
+      await pickColour('Saffron');
+      const outer = points.find(p => p.part === 'outer0');
+      await click(outer.x, outer.y);
+      check('rangoli: one tap colours all the matching petals', (await js(`[...document.querySelectorAll('[data-group="outer0"]')].filter(p => p.getAttribute('fill') === '#FB8C00').length`)) === 4 && (await js(`document.querySelector('[data-part="outer1"]').getAttribute('fill')`)) === '#FFFFFF');
+      await pickColour('Blue');
+      for (const p of points.filter(p => p.part !== 'outer0' && p.part !== 'bg')) { await click(p.x, p.y); if (p.part === 'dot0') await pickColour('Pink'); if (p.part === 'ring') await pickColour('Yellow'); if (p.part === 'inner0') await pickColour('Red'); }
+      await shot('64-col-rangoli');
+    }
+
+    await viewport(390, 844, true);
+    await go('#/colouring/diya');
+    {
+      const info = await js(`(() => { const p = document.querySelector('.col-picture').getBoundingClientRect(); const s = [...document.querySelectorAll('.col-swatch')].map(b => b.offsetWidth); const f = document.querySelector('.col-finish').getBoundingClientRect(); return { pic: p.width, finishBottom: f.bottom, minSwatch: Math.min(...s), vh: innerHeight, scrollW: document.documentElement.scrollWidth, vw: innerWidth }; })()`);
+      check('phone: colouring picture fills the width, colours stay 64px, all on screen', info.pic >= 300 && info.minSwatch >= 64 && info.finishBottom <= info.vh && info.scrollW <= info.vw, JSON.stringify(info));
+      const points = await js(PART_POINTS);
+      await pickColour('Saffron');
+      const events = [];
+      for (const p of points.slice(0, 6)) { await tapTouch(p.x, p.y); await sleep(120); events.push(p.part + '=' + await fillOf(p.part)); }
+      check('phone: tapping with a finger colours each part', events.every(e => e.endsWith('#FB8C00')), events.join(' '));
+      await shot('65-col-diya-phone');
+    }
+    await viewport(1024, 768, true);
+    await go('#/colouring/lotus');
+    await shot('66-col-lotus-tablet');
+    await viewport(768, 1024, true);
+    await go('#/colouring/house');
+    await shot('67-col-house-tablet-portrait');
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- The new games in Hindi ----------
+  if (want('hindi')) {
+    await viewport(1280, 800, false);
+    await go('#/');
+    await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'हिंदी').click()`);
+    await sleep(150);
+    check('Hindi: every card and its tag is in Hindi', await js(`[...document.querySelectorAll('.game-card-title, .game-card-tag, .game-card-blurb')].every(n => /[\\u0900-\\u097F]/.test(n.textContent))`));
+    await go('#/pattern/easy');
+    check('Hindi pattern: speaks Hindi', (await statusText()).includes('देखिए') && (await js(`document.querySelector('.pt-watch').textContent`)) === 'देखिए');
+    await go('#/sorting/hard');
+    check('Hindi sorting: baskets and picture named in Hindi', await js(`[...document.querySelectorAll('.so-basket-name, .so-card-name')].every(n => /[\\u0900-\\u097F]/.test(n.textContent))`));
+    await shot('70-hi-sorting');
+    await go('#/colouring');
+    check('Hindi colouring: picture names in Hindi', (await js(`document.querySelector('.levels-title').textContent`)) === 'तस्वीर चुनिए' && await js(`[...document.querySelectorAll('.level-name')].every(n => /[\\u0900-\\u097F]/.test(n.textContent))`));
+    await go('#/colouring/lotus');
+    check('Hindi colouring: names the colour in Hindi', (await statusText()).startsWith('रंग:'), await statusText());
+    await viewport(390, 844, true);
+    await go('#/');
+    await shot('71-hi-home-phone');
+    check('Hindi on a phone: home has no sideways scroll', await noSideScroll());
+    await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'English').click()`);
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- Every screen, every language: no missing words ----------
+  if (want('strings')) {
+    const missing = await js(`(() => {
+      const out = [];
+      for (const lang of ['en', 'hi']) {
+        SG.setLang(lang);
+        for (const g of SG.games) {
+          for (const k of ['title', 'blurb', 'howto']) if (SG.t(g.text + '.' + k) === undefined) out.push(lang + ':' + g.text + '.' + k);
+          if (SG.t('cat.' + g.category) === undefined) out.push(lang + ':cat.' + g.category);
+          for (const l of Object.keys(g.levels)) if (!g.detail(l)) out.push(lang + ':' + g.key + ' detail ' + l);
+        }
+      }
+      SG.setLang('en');
+      return out;
+    })()`);
+    check('every game has its words in both languages', missing.length === 0, missing.join());
+  }
+
+  // ---------- Installable, and works offline ----------
+  if (want('offline')) {
+    await viewport(1280, 800, false);
+    const listed = await js(`fetch('sw.js').then(r => r.text())`);
+    const needed = await js(`[...document.querySelectorAll('script[src], link[rel=stylesheet], link[rel=manifest], link[rel=apple-touch-icon]')].map(n => n.getAttribute('src') || n.getAttribute('href'))`);
+    const manifest = await js(`fetch('manifest.webmanifest').then(r => r.json())`);
+    const unlisted = needed.concat(manifest.icons.map(i => i.src)).filter(f => !listed.includes(`'${f}'`));
+    check('offline: every file the app loads is in the offline list', unlisted.length === 0, unlisted.join());
+    await go('#/');
+    const ready = await js(`Promise.race([navigator.serviceWorker.ready.then(() => true), new Promise(r => setTimeout(() => r(false), 8000))])`);
+    check('offline: the offline helper starts', ready);
+    await sleep(1500); // let it finish fetching everything
+    await send('Network.enable');
+    await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await go('#/');
+    check('offline: the home page opens with no internet', (await js(`document.querySelectorAll('.game-card').length`)) === (await js(`SG.games.length`)) && (await js(`SG.games.length`)) >= 6);
+    await go('#/colouring/kite');
+    check('offline: a game opens with no internet', await js(`!!document.querySelector('.col-picture')`));
+    await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  }
+
+  // ---------- Home, with the whole collection ----------
+  if (want('home')) {
+    for (const [name, w, h, mobile] of [['desktop', 1280, 800, false], ['tablet-landscape', 1024, 768, true], ['tablet-portrait', 768, 1024, true], ['phone', 390, 844, true]]) {
+      await viewport(w, h, mobile);
+      await go('#/');
+      await shot('80-home-' + name);
+      check(`home ${name}: every game card, no sideways scroll`, (await js(`document.querySelectorAll('.game-card').length === SG.games.length`)) && await noSideScroll());
+    }
+    await viewport(1280, 800, false);
+  }
 } catch (err) {
   problems.push('DRIVER ERROR: ' + err.stack);
 } finally {

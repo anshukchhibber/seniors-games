@@ -22,35 +22,14 @@
   const SIDE_BY_SIDE = '(min-width: 820px) and (orientation: landscape)'; // keep in step with style.css
   const SIDE_WIDTH = 340 + 28;
 
-  // The rows/columns split that gives the biggest squares in a space of w x h.
-  function bestGrid(count, w, h) {
-    let best = null;
-    for (let cols = 2; cols <= count; cols++) {
-      const rows = Math.ceil(count / cols);
-      const cell = Math.min((w - GAP * (cols - 1)) / cols, (h - GAP * (rows - 1)) / rows);
-      const score = cell + (count % cols === 0 ? 0.5 : 0); // prefer a full last row when it costs nothing
-      if (!best || score > best.score) best = { cols: cols, cell: cell, score: score };
-    }
-    return best;
-  }
-
   function mount(stage, levelKey, hooks) {
     const level = LEVELS[levelKey];
     const t = SG.t;
     hooks = hooks || {};
 
     let count, next, tiles, hinted, done;
-    let timers = [];
+    const timers = SG.timers();
     let layoutEl, wrap, board, foot, targetEl, statusEl;
-
-    function later(fn, ms) {
-      timers.push(setTimeout(fn, ms));
-    }
-
-    function clearTimers() {
-      timers.forEach(clearTimeout);
-      timers = [];
-    }
 
     function room() {
       const sideBySide = window.matchMedia(SIDE_BY_SIDE).matches;
@@ -89,7 +68,7 @@
       if (space.w <= 0 || space.h <= 0) return level.count;
       const options = [level.count].concat(SMALLER_SETS.filter(function (n) { return n < level.count; }));
       for (let i = 0; i < options.length; i++) {
-        if (bestGrid(options[i], space.w, space.h).cell >= MIN_CELL) return options[i];
+        if (SG.bestGrid(options[i], space.w, space.h, GAP).cell >= MIN_CELL) return options[i];
       }
       return options[options.length - 1];
     }
@@ -99,7 +78,7 @@
       for (let n = 1; n <= count; n++) numbers.push(n);
       tiles = {};
       SG.shuffle(numbers).forEach(function (n) {
-        const button = el('button', { class: 'nh-tile', type: 'button', text: String(n) });
+        const button = el('button', { class: 'nh-tile pressable', type: 'button', text: String(n) });
         const tile = { n: n, button: button, done: false };
         SG.onTap(button, function () { tapTile(tile); });
         tiles[n] = tile;
@@ -110,7 +89,7 @@
     function layout() {
       if (!board) return;
       const space = room();
-      const grid = bestGrid(count, space.w, space.h);
+      const grid = SG.bestGrid(count, space.w, space.h, GAP);
       const cell = Math.floor(SG.clamp(grid.cell, 40, MAX_CELL));
       board.style.setProperty('--cols', grid.cols);
       board.style.setProperty('--cell', cell + 'px');
@@ -140,7 +119,7 @@
         done = true;
         statusEl.textContent = t('nh.last', count);
         SG.sound.win();
-        later(showWin, WIN_PAUSE_MS);
+        timers.later(showWin, WIN_PAUSE_MS);
         return;
       }
       targetEl.textContent = String(next);
@@ -169,7 +148,7 @@
     }
 
     function newGame() {
-      clearTimers();
+      timers.clear();
       next = 1;
       hinted = null;
       done = false;
@@ -192,15 +171,34 @@
         return done || next === 1 ? null : t('nh.progress', next - 1, count);
       },
       destroy: function () {
-        clearTimers();
+        timers.clear();
         window.removeEventListener('resize', layout);
       }
     };
   }
 
-  SG.numbers = {
+  function art() {
+    // 1 and 2 already found; 3 is next.
+    return el('div', { class: 'art art-nh', 'aria-hidden': 'true' }, ['5', '', '3', '', '6', '4'].map(function (n) {
+      return el('span', { class: n ? '' : 'done', text: n });
+    }));
+  }
+
+  function preview(levelKey) {
+    const count = LEVELS[levelKey].count;
+    const grid = SG.squares(count, 'level-art-grid');
+    grid.style.setProperty('--n', Math.sqrt(count));
+    return grid;
+  }
+
+  SG.registerGame({
+    key: 'numbers',
+    text: 'nh',
+    category: 'look',
     levels: LEVELS,
     mount: mount,
+    art: art,
+    preview: preview,
     detail: function (levelKey) { return SG.t('nh.level', LEVELS[levelKey].count); }
-  };
+  });
 })(window.SG);

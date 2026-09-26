@@ -55,6 +55,10 @@
       note(523.25, 0, 0.35, 0.12);
       note(783.99, 0.14, 0.5, 0.12);
     },
+    // One clear note, e.g. for a pad in Repeat the Pattern.
+    pad: function (freq) {
+      note(freq, 0, 0.5, 0.14);
+    },
     win: function () {
       [523.25, 659.25, 783.99, 1046.5].forEach(function (freq, i) {
         note(freq, i * 0.16, 0.6, 0.12);

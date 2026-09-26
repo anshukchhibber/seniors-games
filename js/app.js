@@ -8,16 +8,19 @@
   'use strict';
 
   const el = SG.el;
-  const svg = SG.svg;
   const t = SG.t;
   const view = document.getElementById('view');
 
-  // `text` is the prefix of the game's entries in i18n.js (ws.title, ws.blurb, ws.howto ...).
-  const GAMES = {
-    wordsearch: { module: SG.wordsearch, text: 'ws', art: wordSearchArt, preview: wordSearchPreview },
-    tilematch: { module: SG.tilematch, text: 'tm', art: tileMatchArt, preview: tileMatchPreview },
-    numbers: { module: SG.numbers, text: 'nh', art: numbersArt, preview: numbersPreview }
-  };
+  function gameByKey(key) {
+    return SG.games.filter(function (game) { return game.key === key; })[0];
+  }
+
+  // A game's own wording if it has one ("New Puzzle"), otherwise the shared wording ("New Game").
+  function tg(game, suffix, shared) {
+    const own = game.text + '.' + suffix;
+    const args = [SG.has(own) ? own : shared].concat(Array.prototype.slice.call(arguments, 3));
+    return t.apply(null, args);
+  }
 
   let current = null; // the game being played, if any
 
@@ -62,83 +65,14 @@
     ]);
   }
 
-  // ---------- Little pictures ----------
-
-  function wordSearchArt() {
-    // The same picture in each script: a small letter grid with one word highlighted.
-    const letters = SG.lang === 'hi'
-      ? ['प', 'सू', 'ल', 'न', 'ग', 'की', 'र', 'मा', 'क', 'म', 'ल', 'टा']
-      : 'PSUNLOKATREE'.split('');
-    const wordLength = SG.lang === 'hi' ? 3 : 4; // कमल / TREE, along the bottom row
-    return el('div', { class: 'art art-ws', 'aria-hidden': 'true' }, letters.map(function (letter, i) {
-      const at = i - 8;
-      const lit = at >= 0 && at < wordLength;
-      const cls = lit ? 'hl' + (at === 0 ? ' hl-start' : '') + (at === wordLength - 1 ? ' hl-end' : '') : '';
-      return el('span', { class: cls, text: letter });
-    }));
-  }
-
-  function tileMatchArt() {
-    const face = SG.lang === 'hi' ? '🐘' : '🌻';
-    return el('div', { class: 'art art-tm', 'aria-hidden': 'true' }, [face, '', '', '', face, ''].map(function (f) {
-      return el('span', { class: f ? 'up' : '', text: f });
-    }));
-  }
-
-  function numbersArt() {
-    // 1 and 2 already found; 3 is next.
-    return el('div', { class: 'art art-nh', 'aria-hidden': 'true' }, ['5', '', '3', '', '6', '4'].map(function (n) {
-      return el('span', { class: n ? '' : 'done', text: n });
-    }));
-  }
-
-  // Level pictures: a bigger grid with more (and more varied) highlighted words as it gets harder.
-  function wordSearchPreview(levelKey) {
-    const spec = {
-      easy: { n: 4, bands: [[1, 0, 1, 2, '#FFD54F', '#946C00'], [0, 3, 3, 3, '#90CAF9', '#1F6FB5']] },
-      medium: { n: 5, bands: [[0, 1, 0, 4, '#FFD54F', '#946C00'], [1, 0, 4, 3, '#A5D6A7', '#2F7D38']] },
-      hard: { n: 6, bands: [[0, 0, 0, 3, '#FFD54F', '#946C00'], [1, 1, 4, 4, '#A5D6A7', '#2F7D38'], [5, 5, 2, 5, '#F8A5C2', '#B83A70'], [5, 0, 5, 3, '#90CAF9', '#1F6FB5']] }
-    }[levelKey];
-    const parts = [];
-    spec.bands.forEach(function (b) {
-      [[b[5], 0.78], [b[4], 0.58]].forEach(function (stroke) {
-        parts.push(svg('line', {
-          x1: b[1] + 0.5, y1: b[0] + 0.5, x2: b[3] + 0.5, y2: b[2] + 0.5,
-          stroke: stroke[0], 'stroke-width': stroke[1], 'stroke-linecap': 'round'
-        }));
-      });
-    });
-    for (let r = 0; r < spec.n; r++) {
-      for (let c = 0; c < spec.n; c++) parts.push(svg('circle', { cx: c + 0.5, cy: r + 0.5, r: 0.14, fill: '#1F2A44' }));
-    }
-    return svg('svg', { class: 'level-art', viewBox: '0 0 ' + spec.n + ' ' + spec.n, 'aria-hidden': 'true' }, parts);
-  }
-
-  function squares(count, className) {
-    const parts = [];
-    for (let i = 0; i < count; i++) parts.push(el('span'));
-    return el('div', { class: 'level-art ' + className, 'aria-hidden': 'true' }, parts);
-  }
-
-  function tileMatchPreview(levelKey) {
-    return squares(SG.tilematch.levels[levelKey].pairs * 2, 'level-art-tiles');
-  }
-
-  function numbersPreview(levelKey) {
-    const count = SG.numbers.levels[levelKey].count;
-    const grid = squares(count, 'level-art-grid');
-    grid.style.setProperty('--n', Math.sqrt(count));
-    return grid;
-  }
-
   // ---------- Screens ----------
 
   function renderHome() {
     document.title = t('appName');
 
-    const cards = Object.keys(GAMES).map(function (key) {
-      const game = GAMES[key];
-      return link({ class: 'game-card', href: '#/' + key }, [
+    const cards = SG.games.map(function (game) {
+      return link({ class: 'game-card', href: '#/' + game.key }, [
+        el('span', { class: 'game-card-tag', text: t('cat.' + game.category) }),
         el('div', { class: 'art-box' }, [game.art()]),
         el('h2', { class: 'game-card-title', text: t(game.text + '.title') }),
         el('p', { class: 'game-card-blurb', text: t(game.text + '.blurb') }),
@@ -178,10 +112,10 @@
     const last = SG.store.get('last.' + key, '');
     const phoneNote = t(game.text + '.level.phone'); // only some games shrink on a phone
 
-    const options = Object.keys(game.module.levels).map(function (levelKey) {
+    const options = Object.keys(game.levels).map(function (levelKey) {
       const words = [
-        el('span', { class: 'level-name', text: t('level.' + levelKey) }),
-        el('span', { class: 'level-detail', text: game.module.detail(levelKey) })
+        el('span', { class: 'level-name', text: game.levelName ? game.levelName(levelKey) : t('level.' + levelKey) }),
+        el('span', { class: 'level-detail', text: game.detail(levelKey) })
       ];
       if (phoneNote && levelKey === 'hard') words.push(el('span', { class: 'level-detail phone-only', text: phoneNote }));
       if (levelKey === last) words.push(el('span', { class: 'level-last', text: t('levels.last') }));
@@ -200,7 +134,7 @@
 
     view.appendChild(bar(title));
     view.appendChild(el('div', { class: 'levels-page' }, [
-      el('div', { class: 'levels' }, [el('h2', { class: 'levels-title', text: t('levels.choose') })].concat(options)),
+      el('div', { class: 'levels' }, [el('h2', { class: 'levels-title', text: tg(game, 'choose', 'levels.choose') })].concat(options)),
       howTo
     ]));
   }
@@ -210,7 +144,7 @@
     document.title = title + ' – ' + t('appName');
     SG.store.set('last.' + key, levelKey);
 
-    const action = el('button', { class: 'btn btn-secondary', type: 'button', text: t(game.text + '.action') });
+    const action = el('button', { class: 'btn btn-secondary', type: 'button', text: tg(game, 'action', 'newGame') });
     const stage = el('div', { class: 'stage' });
     const top = bar(title, action);
     top.classList.add('bar-playing');
@@ -228,10 +162,10 @@
         return;
       }
       const keep = el('button', { class: 'btn btn-lg', type: 'button', text: t('keepPlaying') });
-      const fresh = el('button', { class: 'btn btn-secondary', type: 'button', text: t(game.text + '.action') });
+      const fresh = el('button', { class: 'btn btn-secondary', type: 'button', text: tg(game, 'action', 'newGame') });
       const panel = SG.panel({
-        title: t(game.text + '.confirmTitle'),
-        text: t(game.text + '.confirmText', progress),
+        title: tg(game, 'confirmTitle', 'confirmNew.title'),
+        text: tg(game, 'confirmText', 'confirmNew.text', progress),
         actions: [keep, fresh]
       });
       function close() {
@@ -256,7 +190,7 @@
 
     view.appendChild(top);
     view.appendChild(stage); // must be in the page before mounting so the game can measure the screen
-    current = game.module.mount(stage, levelKey, {
+    current = game.mount(stage, levelKey, {
       onStart: function () { showAction(true); },
       onWin: function () { showAction(false); } // the finish screen has its own "Play Again"
     });
@@ -272,9 +206,9 @@
     view.textContent = '';
 
     const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    const game = GAMES[parts[0]];
+    const game = gameByKey(parts[0]);
     if (!game) renderHome();
-    else if (!game.module.levels[parts[1]]) renderLevels(parts[0], game);
+    else if (!game.levels[parts[1]]) renderLevels(parts[0], game);
     else renderGame(parts[0], game, parts[1]);
 
     window.scrollTo(0, 0);
@@ -297,7 +231,8 @@
   const PRESS_SHOW_MS = 160;
   document.addEventListener('pointerdown', function (e) {
     if (!e.target.closest) return;
-    const pressed = e.target.closest('.game-card') || e.target.closest('.btn, .level-btn, .tm-tile, .nh-tile');
+    // `.pressable` is how a game marks its own big buttons (tiles, pads, swatches...).
+    const pressed = e.target.closest('.game-card') || e.target.closest('.btn, .level-btn, .pressable');
     if (!pressed) return;
     const since = Date.now();
     pressed.classList.add('is-pressed');

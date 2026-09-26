@@ -203,19 +203,8 @@
     let hinted;            // the word currently being hinted, if any
     let pointerId, downCell, downX, downY;
     let cursor, usingKeys; // keyboard play
-    let timers = [];
+    const timers = SG.timers();
     let layoutEl, wrap, board, foot, foundLayer, preview, previewLines, hintRing, statusEl, cellEls, wordEls;
-
-    function later(fn, ms) {
-      const id = setTimeout(fn, ms);
-      timers.push(id);
-      return id;
-    }
-
-    function clearTimers() {
-      timers.forEach(clearTimeout);
-      timers = [];
-    }
 
     function same(a, b) {
       return a && b && a.r === b.r && a.c === b.c;
@@ -504,7 +493,7 @@
         done = true;
         statusEl.textContent = t('ws.foundLast', p.word);
         SG.sound.win();
-        later(showWin, WIN_PAUSE_MS);
+        timers.later(showWin, WIN_PAUSE_MS);
       } else {
         statusEl.textContent = t('ws.foundWord', p.word, left);
         SG.sound.found();
@@ -626,7 +615,7 @@
     // ----- Lifecycle -----
 
     function newGame() {
-      clearTimers();
+      timers.clear();
       puzzle = buildPuzzle(level, n, wordCount, script, themes);
       done = false;
       foundCount = 0;
@@ -651,16 +640,64 @@
         return done || !foundCount ? null : t('ws.progress', foundCount, puzzle.placements.length);
       },
       destroy: function () {
-        clearTimers();
+        timers.clear();
         window.removeEventListener('resize', layout);
       }
     };
   }
 
-  SG.wordsearch = {
+  // ---------- Pictures for the home card and level buttons ----------
+
+  function art() {
+    // The same picture in each script: a small letter grid with one word highlighted.
+    const letters = SG.lang === 'hi'
+      ? ['प', 'सू', 'ल', 'न', 'ग', 'की', 'र', 'मा', 'क', 'म', 'ल', 'टा']
+      : 'PSUNLOKATREE'.split('');
+    const wordLength = SG.lang === 'hi' ? 3 : 4; // कमल / TREE, along the bottom row
+    return el('div', { class: 'art art-ws', 'aria-hidden': 'true' }, letters.map(function (letter, i) {
+      const at = i - 8;
+      const lit = at >= 0 && at < wordLength;
+      const cls = lit ? 'hl' + (at === 0 ? ' hl-start' : '') + (at === wordLength - 1 ? ' hl-end' : '') : '';
+      return el('span', { class: cls, text: letter });
+    }));
+  }
+
+  // A bigger grid with more (and more varied) highlighted words as it gets harder.
+  function preview(levelKey) {
+    const spec = {
+      easy: { n: 4, bands: [[1, 0, 1, 2, '#FFD54F', '#946C00'], [0, 3, 3, 3, '#90CAF9', '#1F6FB5']] },
+      medium: { n: 5, bands: [[0, 1, 0, 4, '#FFD54F', '#946C00'], [1, 0, 4, 3, '#A5D6A7', '#2F7D38']] },
+      hard: { n: 6, bands: [[0, 0, 0, 3, '#FFD54F', '#946C00'], [1, 1, 4, 4, '#A5D6A7', '#2F7D38'], [5, 5, 2, 5, '#F8A5C2', '#B83A70'], [5, 0, 5, 3, '#90CAF9', '#1F6FB5']] }
+    }[levelKey];
+    const parts = [];
+    spec.bands.forEach(function (b) {
+      [[b[5], 0.78], [b[4], 0.58]].forEach(function (stroke) {
+        parts.push(svg('line', {
+          x1: b[1] + 0.5, y1: b[0] + 0.5, x2: b[3] + 0.5, y2: b[2] + 0.5,
+          stroke: stroke[0], 'stroke-width': stroke[1], 'stroke-linecap': 'round'
+        }));
+      });
+    });
+    for (let r = 0; r < spec.n; r++) {
+      for (let c = 0; c < spec.n; c++) parts.push(svg('circle', { cx: c + 0.5, cy: r + 0.5, r: 0.14, fill: '#1F2A44' }));
+    }
+    return svg('svg', { class: 'level-art', viewBox: '0 0 ' + spec.n + ' ' + spec.n, 'aria-hidden': 'true' }, parts);
+  }
+
+  SG.registerGame({
+    key: 'wordsearch',
+    text: 'ws',
+    category: 'words',
     levels: LEVELS,
     mount: mount,
-    detail: function (levelKey) { return SG.t('ws.level.' + levelKey); },
+    art: art,
+    preview: preview,
+    detail: function (levelKey) { return SG.t('ws.level.' + levelKey); }
+  });
+
+  // The playtest uses these to solve puzzles and to build hundreds of them.
+  SG.wordsearch = {
+    mount: mount,
     split: function (text) { return (SCRIPTS[SG.lang] || SCRIPTS.en).split(text); }
   };
 })(window.SG);

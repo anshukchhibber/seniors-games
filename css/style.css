@@ -203,7 +203,7 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 
 /* ---------- Home ---------- */
 
-.home { min-height: 86vh; display: flex; flex-direction: column; justify-content: center; }
+.home { display: flex; flex-direction: column; justify-content: center; padding-top: var(--space-5); }
 
 .home-head { text-align: center; padding-bottom: var(--space-7); }
 .home-brand { display: flex; align-items: center; justify-content: center; gap: var(--space-3); }
@@ -236,6 +236,16 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   transition: transform var(--motion-press), box-shadow var(--motion-press);
 }
 .game-card:active, .game-card.is-pressed { transform: var(--press-shift); box-shadow: var(--raise-pressed) var(--color-line-strong); }
+/* What the game is good for. Flat and cream: information, not something to press */
+.game-card-tag {
+  padding: 2px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-info);
+  color: var(--color-ink);
+  font-weight: 700;
+  line-height: 1.4;
+}
+:lang(hi) .game-card-tag { line-height: 1.6; }
 .game-card-title { font-size: var(--text-title); }
 .game-card-blurb { color: var(--color-ink-soft); padding-bottom: var(--space-3); }
 .game-card-play { margin-top: auto; min-width: 200px; } /* auto: both Play buttons line up even if one blurb is longer */
@@ -612,6 +622,247 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   .hand-left .nh-layout { grid-template-columns: 340px auto; grid-template-areas: "info board" "foot board"; }
 }
 
+/* ---------- Repeat the Pattern ---------- */
+
+.pt-layout { display: grid; gap: var(--space-4); justify-items: center; }
+.pt-info { display: grid; justify-items: center; gap: var(--space-2); width: 100%; }
+.pt-status { text-align: center; }
+.pt-board-wrap { width: 100%; }
+.pt-foot { display: grid; justify-items: center; width: 100%; }
+.pt-watch { width: 100%; max-width: 360px; touch-action: none; }
+
+/* How far through the pattern: a ring still to do, a solid dot once tapped (shape, not just colour) */
+.pt-dots { display: flex; gap: var(--space-3); min-height: 28px; align-items: center; }
+.pt-dots span { width: 24px; height: 24px; border: var(--border) solid var(--color-ink); border-radius: 50%; }
+.pt-dots .on { background: var(--color-ink); }
+
+.pt-board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), var(--pad-size, 160px));
+  grid-auto-rows: var(--pad-size, 160px);
+  gap: var(--gap, 16px);
+  justify-content: center;
+  touch-action: none;
+  padding-bottom: 4px; /* room for the raised edge of the last row */
+}
+
+/* A pad: its own colour with a big white shape. Lit: it turns white with the shape in its colour,
+   and gains a thick dark ring - a change you can see without telling colours apart. */
+.pt-pad {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: var(--border-thick) solid var(--pad);
+  border-radius: 22%;
+  background: var(--pad);
+  box-shadow: 0 5px 0 var(--color-ink);
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: transform var(--motion-press), box-shadow var(--motion-press);
+}
+.pt-pad.pt-ink { color: var(--color-ink); }
+.pt-shape { width: 58%; height: 58%; fill: currentColor; }
+.pt-pad.is-pressed { transform: translateY(4px); box-shadow: 0 1px 0 var(--color-ink); }
+.pt-pad.lit {
+  background: #FFFFFF;
+  color: var(--pad);
+  border-color: var(--color-ink);
+  outline: 6px solid var(--pad);
+  outline-offset: -12px;
+}
+.pt-pad.lit .pt-shape { stroke: var(--color-ink); stroke-width: 0.9; stroke-linejoin: round; }
+.pt-showing .pt-pad { cursor: default; }
+
+.art-pt { grid-template-columns: repeat(2, 58px); grid-auto-rows: 58px; gap: var(--space-2); }
+.art-pt span {
+  display: flex; align-items: center; justify-content: center;
+  border: var(--border-thin) solid var(--pad);
+  border-radius: 14px;
+  background: var(--pad);
+  color: #FFFFFF;
+}
+.art-pt .pt-ink { color: var(--color-ink); }
+.art-pt .lit { background: #FFFFFF; color: var(--pad); border: var(--border) solid var(--color-ink); }
+.art-pt .pt-shape { width: 62%; height: 62%; }
+
+.level-art-pt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.level-art-pads { display: grid; grid-template-columns: repeat(2, 26px); grid-auto-rows: 26px; gap: 4px; }
+.level-art-pads.six { grid-template-columns: repeat(3, 20px); grid-auto-rows: 20px; }
+.level-art-pads span { border-radius: 6px; }
+.level-art-dots { display: flex; gap: 3px; }
+.level-art-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--color-ink); }
+
+/* ---------- Sort into Baskets ---------- */
+
+.so-layout { display: grid; gap: var(--space-3); }
+.so-status { text-align: center; }
+.so-field { display: grid; grid-template-rows: 1fr auto; gap: var(--space-5); touch-action: none; }
+.so-home { display: flex; align-items: center; justify-content: center; min-height: calc(var(--card, 180px) + 16px); }
+
+/* The picture to sort: a raised white card - it can be picked up */
+.so-card {
+  position: relative;
+  z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  width: var(--card, 180px);
+  height: var(--card, 180px);
+  background: var(--color-surface);
+  border: var(--border) solid var(--color-action);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--raise-surface);
+  cursor: grab;
+  touch-action: none;
+  animation: panel-in 0.3s ease-out;
+}
+.so-card.dragging { cursor: grabbing; box-shadow: 0 10px 0 rgba(31, 42, 68, 0.25); border-width: var(--border-thick); }
+.so-card-pic { font-family: var(--font-emoji); font-size: calc(var(--card, 180px) * 0.44); line-height: 1; }
+.so-card-name { font-weight: 700; font-size: var(--text-label); line-height: 1.2; text-align: center; padding: 0 8px; }
+
+.so-baskets { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: var(--space-4); }
+.so-basket {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--space-2);
+  min-height: 170px;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: var(--border) solid var(--color-action);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--raise-surface);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--motion-press), box-shadow var(--motion-press), background-color var(--motion-press);
+}
+.so-basket.is-pressed { background: var(--color-action-tint); box-shadow: var(--raise-pressed) var(--color-action); transform: var(--press-shift); }
+/* A picture held over a basket: the basket answers before the finger lets go */
+.so-basket.so-over { background: var(--color-action-tint); border-width: var(--border-thick); }
+/* Shown after a second try: dashed (a shape, not just a colour), three gentle pulses, then it stays */
+.so-basket.so-hint { outline: var(--border-thick) dashed var(--color-action); outline-offset: 4px; animation: nh-pulse 1.2s ease-in-out 3; }
+.so-basket-name { font-size: var(--text-title); font-weight: 700; line-height: var(--leading-tight); text-align: center; }
+.so-basket-pic { position: relative; display: block; width: min(100%, 220px); padding-top: 34px; }
+.so-basket-art { display: block; width: 100%; height: auto; }
+/* What is already in the basket, piled on top */
+.so-contents {
+  position: absolute; left: 8%; right: 8%; top: 0;
+  display: flex; flex-wrap: wrap-reverse; justify-content: center;
+  font-family: var(--font-emoji); font-size: 28px; line-height: 1;
+  max-height: 60px; overflow: hidden;
+}
+.so-contents span { margin: 0 -3px; }
+
+.so-trophies { display: grid; gap: var(--space-3); text-align: left; }
+.so-trophy { display: grid; gap: 2px; }
+.so-trophy-name { font-weight: 700; }
+.so-trophy-pics { font-family: var(--font-emoji); font-size: 36px; line-height: 1.2; letter-spacing: 4px; }
+
+.art-so { grid-template-columns: repeat(2, 76px); grid-template-rows: 64px 50px; gap: 6px; justify-items: center; align-items: end; }
+.art-so-card {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px;
+  background: var(--color-surface);
+  border: var(--border-thin) solid var(--color-action);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 var(--color-action);
+  font-family: var(--font-emoji); font-size: 38px; line-height: 1;
+}
+.art-so-basket { width: 76px; }
+.art-so-basket svg { display: block; width: 100%; height: auto; }
+
+.level-art-so { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.level-art-things { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 70px; }
+.level-art-things span { width: 9px; height: 9px; border-radius: 2px; background: var(--color-action); }
+.level-art-baskets { display: flex; gap: 4px; }
+.level-art-baskets svg { width: 28px; height: auto; }
+
+@media (max-width: 480px) {
+  .so-baskets { gap: var(--space-3); }
+  .so-basket { min-height: 140px; padding: var(--space-2) 4px var(--space-3); }
+  .so-basket-name { font-size: var(--text-body); overflow-wrap: anywhere; hyphens: auto; }
+  .so-contents { font-size: 22px; }
+}
+
+/* ---------- Colouring Book ---------- */
+
+.col-layout { display: grid; gap: var(--space-4); justify-items: center; grid-template-areas: "status" "picture" "side"; }
+.col-status { grid-area: status; text-align: center; width: 100%; }
+.col-picture-box { grid-area: picture; width: 320px; height: 320px; }
+.col-picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--color-surface);
+  border: var(--border) solid var(--color-ink);
+  border-radius: var(--radius-md);
+  touch-action: none; /* every touch on the picture is a tap on a part - never a scroll or zoom */
+  cursor: pointer;
+}
+.col-part:focus { outline: none; }
+.col-part:focus-visible { stroke: var(--color-focus); stroke-width: 2.8; }
+.col-side { grid-area: side; display: grid; gap: var(--space-4); justify-items: center; }
+
+.col-palette { display: grid; grid-template-columns: repeat(6, 64px); gap: 10px 12px; padding-bottom: 4px; touch-action: none; }
+/* A swatch: a raised circle of its colour. The chosen one gets a thick ring AND a tick. */
+.col-swatch {
+  display: flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px;
+  padding: 0;
+  border: var(--border) solid var(--color-ink-soft);
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 4px 0 var(--color-ink);
+  cursor: pointer;
+  transition: transform var(--motion-press), box-shadow var(--motion-press);
+}
+.col-swatch.is-pressed { transform: translateY(3px); box-shadow: 0 1px 0 var(--color-ink); }
+.col-swatch .icon {
+  visibility: hidden;
+  width: 30px; height: 30px;
+  padding: 4px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: var(--color-ink);
+  box-shadow: 0 0 0 2px var(--color-ink);
+}
+.col-swatch[aria-pressed="true"] { outline: var(--border-thick) solid var(--color-ink); outline-offset: 3px; }
+.col-swatch[aria-pressed="true"] .icon { visibility: visible; }
+
+.col-tools { display: flex; gap: var(--space-3); width: 100%; justify-content: center; }
+.col-tools .btn { flex: 1 1 0; max-width: 240px; touch-action: none; padding-left: 16px; padding-right: 16px; }
+
+.col-finished { display: block; width: min(320px, 70vw); height: auto; margin: 0 auto; background: #FFFFFF; border: var(--border) solid var(--color-ink); border-radius: var(--radius-md); }
+
+.art-col { grid-template-columns: 112px 26px; gap: 12px; align-items: center; }
+.art-col-picture { width: 112px; height: 112px; background: #FFFFFF; border: var(--border-thin) solid var(--color-line); border-radius: 14px; }
+.art-col-swatches { display: grid; gap: 6px; }
+.art-col-swatches span { width: 26px; height: 26px; border-radius: 50%; border: var(--border-thin) solid var(--color-ink-soft); }
+.level-art-col { background: #FFFFFF; border: var(--border-thin) solid var(--color-ink); border-radius: 10px; }
+
+@media (min-width: 820px) and (orientation: landscape) { /* keep in step with SIDE_BY_SIDE in colouring.js */
+  .col-layout {
+    grid-template-columns: auto 272px;
+    grid-template-areas: "status status" "picture side";
+    justify-content: center;
+    align-items: start;
+    column-gap: 28px;
+  }
+  .col-palette { grid-template-columns: repeat(3, 72px); gap: 14px; }
+  .col-swatch { width: 72px; height: 72px; }
+  .col-tools { flex-direction: column; align-items: stretch; }
+  .col-tools .btn { max-width: none; }
+  .hand-left .col-layout { grid-template-columns: 272px auto; grid-template-areas: "status status" "side picture"; }
+}
+
+@media (max-width: 480px) {
+  /* Fewer colours per row rather than smaller ones */
+  .col-palette { grid-template-columns: repeat(4, 64px); gap: 10px 14px; }
+  .art-col { grid-template-columns: 76px 18px; gap: 8px; }
+  .art-col-picture { width: 76px; height: 76px; border-radius: 10px; }
+  .art-col-swatches { gap: 4px; }
+  .art-col-swatches span { width: 18px; height: 18px; }
+  .howto .art-col { grid-template-columns: 112px 26px; gap: 12px; }
+  .howto .art-col-picture { width: 112px; height: 112px; }
+  .howto .art-col-swatches span { width: 26px; height: 26px; }
+}
+
 /* ---------- Hindi (Devanagari) ---------- */
 
 /* Vowel signs sit above and below the line, so lines need more air; and letter-spacing must be
@@ -628,19 +879,20 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 /* ---------- Medium screens (a tablet held upright) ---------- */
 
 @media (min-width: 481px) and (max-width: 899px) {
-  /* Three games as three wide rows: picture, words, Play */
+  /* One game per wide row: picture, words, Play */
   .game-cards { grid-template-columns: 1fr; max-width: 720px; gap: var(--space-5); }
   .game-card {
     display: grid;
     grid-template-columns: 196px 1fr auto;
-    grid-template-areas: "art title play" "art blurb play";
+    grid-template-areas: "art tag play" "art title play" "art blurb play";
     align-items: center;
     column-gap: var(--space-6);
     padding: var(--space-5) var(--space-6);
     text-align: left;
   }
   .game-card .art-box { grid-area: art; height: auto; }
-  .game-card-title { grid-area: title; align-self: end; }
+  .game-card-tag { grid-area: tag; align-self: end; justify-self: start; }
+  .game-card-title { grid-area: title; }
   .game-card-blurb { grid-area: blurb; align-self: start; padding-bottom: 0; }
   .game-card-play { grid-area: play; min-width: 140px; margin-top: 0; }
 }
@@ -670,14 +922,15 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   .game-card {
     display: grid;
     grid-template-columns: 112px 1fr;
-    grid-template-areas: "art title" "art blurb" "play play";
+    grid-template-areas: "art tag" "art title" "art blurb" "play play";
     column-gap: var(--space-4);
     padding: var(--space-4);
     text-align: left;
     align-items: center;
   }
   .game-card .art-box { grid-area: art; height: auto; }
-  .game-card-title { grid-area: title; align-self: end; }
+  .game-card-tag { grid-area: tag; align-self: end; justify-self: start; }
+  .game-card-title { grid-area: title; }
   .game-card-blurb { grid-area: blurb; align-self: start; }
   .game-card-play { grid-area: play; }
   .art-ws { grid-template-columns: repeat(4, 24px); grid-auto-rows: 24px; padding: 5px; font-size: 14px; border-radius: 10px; }

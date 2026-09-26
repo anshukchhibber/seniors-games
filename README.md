@@ -1,13 +1,19 @@
 # Sunny Games
 
-Calm, clear games for seniors: **Word Search**, **Tile Match** and **Number Hunt**, in
-**English and Hindi**. No ads, no popups, no timers, no accounts, no internet needed once loaded.
+Calm, clear games for seniors, in **English and Hindi**. No ads, no popups, no timers, no
+accounts, and no internet needed once it has been opened.
 
-- **Word Search** - find hidden words. Keeps vocabulary and scanning sharp; sliding along a word
-  practises a controlled drag.
-- **Tile Match** - turn over tiles to find pairs. Exercises short-term memory.
-- **Number Hunt** - numbers are scattered over a grid; tap 1, 2, 3... in order. Exercises
-  attention and visual search, and makes the hand reach all over the screen.
+| Game | Tag on its card | What it is good for |
+| --- | --- | --- |
+| **Word Search** | Words | Find hidden words. Vocabulary and scanning; sliding along a word practises a controlled drag. |
+| **Tile Match** | Memory | Turn over tiles to find pairs. Short-term memory. |
+| **Number Hunt** | Look & Find | Tap 1, 2, 3... scattered over a grid. Attention and visual search; the hand reaches all over the screen. |
+| **Repeat the Pattern** | Memory | Pads light up in turn (each with its own colour, shape and note); tap them back. Each pattern is one longer. A slip just means "watch again". |
+| **Sort into Baskets** | Hands | Slide each picture into its basket (fruit / vegetables, hot / cold, land / water...), or tap the basket. Reaching, dragging and simple grouping. |
+| **Colouring Book** | Colour & Create | Choose a colour, tap part of a picture to fill it: flower, house, butterfly, kite, diya, lotus, rangoli. Creative and calming; nothing can go wrong. Every picture is kept, so the picture page is also the gallery. |
+
+The games are for enjoyment and extra practice. They are not therapy, and the app makes no
+"brain training" claims (the evidence for those is weak).
 
 The language is chosen on the home page and switches the whole app. In Hindi the word search
 uses Devanagari (one akshara per square: रिश्तेदार → रि · श्ते · दा · र) and Tile Match uses pictures
@@ -19,6 +25,14 @@ Double-click `index.html`. That's it — there is nothing to install or build.
 
 To play on a tablet, put this folder on any static web host (GitHub Pages, Netlify, …)
 and open the address on the tablet. A tablet is the best fit: the letters and tiles get big.
+
+**Put it on the tablet's home screen** so it opens like an app, full screen, even without internet:
+- iPad (Safari): the Share button → **Add to Home Screen**.
+- Android (Chrome): the ⋮ menu → **Add to Home screen** (or **Install app**).
+
+Once it has been opened online, it keeps working offline (`sw.js`). While online it always loads
+the newest version, so there is nothing to bump when you change a file - but a **new** file must be
+added to the `FILES` list in `sw.js` (the playtest checks this).
 
 ## Design rules (please keep these when adding games)
 
@@ -70,11 +84,41 @@ and open the address on the tablet. A tablet is the best fit: the letters and ti
 | How many numbers in Number Hunt   | `LEVELS` at the top of `js/numbers.js`            |
 | Grid sizes / number of words      | `LEVELS` at the top of `js/wordsearch.js`         |
 | Tile pictures (and look-alike groups) | `SYMBOLS` in `js/tilematch.js`                 |
+| Sort into Baskets groups and pictures | `GROUPS` and `SETS` in `js/sorting.js`       |
+| Colouring pictures and palette    | `PICTURES` and `COLOURS` in `js/colouring.js`     |
+| Pattern pads (shape, colour, note), lengths | `PADS` and `LEVELS` in `js/pattern.js`  |
 | Colours, text sizes, spacing (design tokens) | `:root` at the top of `css/style.css`   |
 | The app's name                    | `APP_NAME` in `js/app.js` and `<title>` in `index.html` |
 
+## Add a game
+
+1. Make `js/<game>.js` ending in `SG.registerGame({ key, text, category, levels, mount, art, preview, detail })`.
+   Copy the shape of `js/pattern.js`: `mount(stage, levelKey, hooks)` returns
+   `{ newGame, resize, progress, destroy }`. Use `SG.onTap` for every tap, `SG.timers()`, `SG.bestGrid`,
+   `SG.winPanel`, and add the class `pressable` to the game's own big buttons.
+2. `levels` can be anything to choose between, not only Easy / Medium / Hard: Colouring Book uses
+   pictures, with `levelName` and a `<text>.choose` heading.
+3. Add its words to `js/i18n.js` in **both** languages (`<text>.title`, `.blurb`, `.howto`, ...). The
+   "New Game" button and the "Start a new game?" page have shared wording; a game can override it.
+4. Add a `<script>` tag in `index.html` (the home page lists games in that order), the file to
+   `FILES` in `sw.js`, and a `want('<game>')` section to `tests/playtest.mjs`.
+
+## Ideas for the next games
+
+From a look at the research and at senior game apps (September 2026):
+- **Harmonium / Sargam**: big सा रे ग म keys. Free play, or follow the glowing key through a simple
+  bhajan. Playing an instrument is the best-evidenced hand exercise of all of these.
+- **Rangoli Mirror**: every tap on a dot grid is mirrored 4 or 8 ways, so it always looks beautiful.
+- **Bazaar Shopping**: remember a short list, then pick it from a stall. She can peek at the list any time.
+- **Complete the Muhavara**: pick the end of a proverb (needs a Hindi speaker's review).
+- **Jigsaw**, with a tap-to-swap alternative. **Recipe Steps**: put chai-making in order.
+- **Spot the Difference**, **Tambola** (good with family), **Diya Lighting** (trace a path),
+  **Calm Garden**.
+
 ## Test
 
-`node tests/playtest.mjs` plays both games to the end in a headless browser with real mouse,
+`node tests/playtest.mjs` plays every game to the end in a headless browser with real mouse,
 touch and keyboard input, at desktop, phone and tablet sizes, and saves screenshots to
 `tests/.output/screenshots`. Needs Node 22+ and Edge or Chrome; no npm packages.
+`ONLY=colouring,sorting node tests/playtest.mjs` runs just those parts (`classic` is the first
+three games; also `pattern`, `hindi`, `strings`, `offline`, `home`).

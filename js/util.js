@@ -103,6 +103,54 @@ window.SG = window.SG || {};
     return Math.max(min, Math.min(max, value));
   };
 
+  // Every game file registers itself here; the home page lists them in the order the
+  // <script> tags load. A game is:
+  //   { key, text, category, art(), mount(stage, levelKey, hooks),
+  //     levels: { key: {...} }, detail(levelKey), preview(levelKey), levelName?(levelKey) }
+  // `text` is the prefix of its entries in i18n.js (ws.title, ws.blurb, ws.howto ...).
+  SG.games = [];
+  SG.registerGame = function (game) {
+    SG.games.push(game);
+  };
+
+  // A little block of squares, for level pictures.
+  SG.squares = function (count, className) {
+    const parts = [];
+    for (let i = 0; i < count; i++) parts.push(SG.el('span'));
+    return SG.el('div', { class: 'level-art ' + className, 'aria-hidden': 'true' }, parts);
+  };
+
+  // Timeouts that all die together when a game is left or restarted.
+  SG.timers = function () {
+    let ids = [];
+    return {
+      later: function (fn, ms) {
+        const id = setTimeout(fn, ms);
+        ids.push(id);
+        return id;
+      },
+      clear: function () {
+        ids.forEach(clearTimeout);
+        ids = [];
+      }
+    };
+  };
+
+  // The rows/columns split that gives the biggest squares for `count` things in a space of w x h.
+  // `exact`: only splits with no gap in the last row (and at least two rows).
+  SG.bestGrid = function (count, w, h, gap, exact) {
+    let best = null;
+    const maxCols = exact ? Math.max(2, Math.floor(count / 2)) : count;
+    for (let cols = 2; cols <= maxCols; cols++) {
+      if (exact && count % cols) continue;
+      const rows = Math.ceil(count / cols);
+      const cell = Math.min((w - gap * (cols - 1)) / cols, (h - gap * (rows - 1)) / rows);
+      const score = cell + (!exact && count % cols === 0 ? 0.5 : 0); // prefer a full last row when it costs nothing
+      if (!best || score > best.score) best = { cols: cols, rows: rows, cell: cell, score: score };
+    }
+    return best;
+  };
+
   // localStorage can throw (private mode, file:// in some browsers) - never let it break a game.
   SG.store = {
     get: function (key, fallback) {
@@ -170,17 +218,19 @@ window.SG = window.SG || {};
     ]);
   };
 
-  SG.winPanel = function (message, trophies, onAgain, levelsHref) {
+  // The finish screen. `options` may change the title, picture and the words on the two buttons.
+  SG.winPanel = function (message, trophies, onAgain, levelsHref, options) {
     const el = SG.el;
-    const again = el('button', { class: 'btn btn-lg', type: 'button', text: SG.t('playAgain') });
+    options = options || {};
+    const again = el('button', { class: 'btn btn-lg', type: 'button', text: options.again || SG.t('playAgain') });
     SG.onTap(again, onAgain);
     return SG.panel({
       kind: 'win',
-      art: SG.star(),
-      title: SG.t('wellDone'),
+      art: options.art || SG.star(),
+      title: options.title || SG.t('wellDone'),
       text: message,
       extra: trophies,
-      actions: [again, el('a', { class: 'btn btn-secondary', href: levelsHref, draggable: 'false', text: SG.t('changeLevel') })]
+      actions: [again, el('a', { class: 'btn btn-secondary', href: levelsHref, draggable: 'false', text: options.back || SG.t('changeLevel') })]
     });
   };
 })(window.SG);

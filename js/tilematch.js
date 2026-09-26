@@ -75,19 +75,8 @@
     hooks = hooks || {};
 
     let tiles, first, pending, pendingSince, pairsFound, turns, done;
-    let timers = [];
+    const timers = SG.timers();
     let layoutEl, wrap, board, statusEl;
-
-    function later(fn, ms) {
-      const id = setTimeout(fn, ms);
-      timers.push(id);
-      return id;
-    }
-
-    function clearTimers() {
-      timers.forEach(clearTimeout);
-      timers = [];
-    }
 
     function describe(tile) {
       const where = t('tm.tile', tile.index + 1);
@@ -110,7 +99,7 @@
       board = el('div', { class: 'tm-board' });
 
       tiles.forEach(function (tile) {
-        tile.button = el('button', { class: 'tm-tile', type: 'button' }, [
+        tile.button = el('button', { class: 'tm-tile pressable', type: 'button' }, [
           el('span', { class: 'tm-face', 'aria-hidden': 'true', text: tile.symbol })
         ]);
         SG.onTap(tile.button, function () { turnOver(tile); });
@@ -134,15 +123,8 @@
       const availH = Math.max(260, window.innerHeight - top - 20);
       const gap = availW < 500 ? 10 : 16;
 
-      let best = null;
-      for (let cols = 2; cols <= tiles.length / 2; cols++) {
-        if (tiles.length % cols) continue;
-        const rows = tiles.length / cols;
-        const size = Math.min((availW - gap * (cols - 1)) / cols, (availH - gap * (rows - 1)) / rows);
-        if (!best || size > best.size) best = { cols: cols, size: size };
-      }
-
-      const size = Math.floor(SG.clamp(best.size, 64, 200));
+      const best = SG.bestGrid(tiles.length, availW, availH, gap, true);
+      const size = Math.floor(SG.clamp(best.cell, 64, 200));
       board.style.setProperty('--cols', best.cols);
       board.style.setProperty('--tile', size + 'px');
       board.style.setProperty('--gap', gap + 'px');
@@ -195,7 +177,7 @@
         done = true;
         statusEl.textContent = t('tm.matchLast', tile.name);
         SG.sound.win();
-        later(showWin, WIN_PAUSE_MS);
+        timers.later(showWin, WIN_PAUSE_MS);
       } else {
         statusEl.textContent = t('tm.match', tile.name, left);
         SG.sound.found();
@@ -223,7 +205,7 @@
     }
 
     function newGame() {
-      clearTimers();
+      timers.clear();
       const chosen = pickSymbols(level.pairs);
       tiles = SG.shuffle(chosen.concat(chosen)).map(function (entry, index) {
         return { index: index, symbol: entry.pic, name: entry[SG.lang] || entry.en, state: 'down', button: null };
@@ -249,15 +231,27 @@
         return done || !pairsFound ? null : t('tm.progress', pairsFound, level.pairs);
       },
       destroy: function () {
-        clearTimers();
+        timers.clear();
         window.removeEventListener('resize', layout);
       }
     };
   }
 
-  SG.tilematch = {
+  function art() {
+    const face = SG.lang === 'hi' ? '🐘' : '🌻';
+    return el('div', { class: 'art art-tm', 'aria-hidden': 'true' }, [face, '', '', '', face, ''].map(function (f) {
+      return el('span', { class: f ? 'up' : '', text: f });
+    }));
+  }
+
+  SG.registerGame({
+    key: 'tilematch',
+    text: 'tm',
+    category: 'memory',
     levels: LEVELS,
     mount: mount,
+    art: art,
+    preview: function (levelKey) { return SG.squares(LEVELS[levelKey].pairs * 2, 'level-art-tiles'); },
     detail: function (levelKey) { return SG.t('tm.level', LEVELS[levelKey].pairs * 2, LEVELS[levelKey].pairs); }
-  };
+  });
 })(window.SG);
