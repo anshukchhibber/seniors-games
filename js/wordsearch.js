@@ -80,7 +80,7 @@
 
   const MAX_CELL = 76;
   const WIN_PAUSE_MS = 2200; // time to enjoy the last highlight before the finish screen
-  const SIDE_BY_SIDE = '(min-width: 820px) and (orientation: landscape)'; // keep in step with style.css
+  const SIDE_BY_SIDE = '(min-width: 640px) and (orientation: landscape)'; // keep in step with style.css
   const SIDE_WIDTH = 340 + 28; // side panel + column gap, as in style.css
 
   let lastTheme = null;
@@ -184,9 +184,10 @@
 
     // On a narrow phone a 12 x 12 grid would make the letters too small to read, so the grid is
     // capped to what fits at a readable size (and carries a couple fewer words to match).
+    // The same goes for height: see newGame(), which steps the grid down until the page fits.
     const fits = stage.clientWidth > 0 ? Math.floor((stage.clientWidth - 6) / MIN_CELL) : level.size;
-    const n = SG.clamp(fits, 8, level.size);
-    const wordCount = Math.min(level.count, n - 2);
+    let n = SG.clamp(fits, 6, level.size);
+    let wordCount = Math.min(level.count, n - 2);
 
     // Selections snap to the directions this level uses (either way round).
     const snapDirs = [];
@@ -309,7 +310,7 @@
       const reserve = sideBySide ? 0 : foot.offsetHeight + 16;
       const border = board.offsetWidth - board.clientWidth;
       const availW = layoutEl.clientWidth - (sideBySide ? SIDE_WIDTH : 0) - border;
-      const availH = window.innerHeight - top - reserve - 20 - border;
+      const availH = SG.bottom() - top - reserve - 8 - border;
       const size = Math.floor(Math.max(
         Math.min(availW, n * MIN_CELL),
         Math.min(availW, availH, n * MAX_CELL)
@@ -624,6 +625,15 @@
       usingKeys = false;
       render();
       layout();
+      // Too big for this screen (letters would drop below reading size, or the page would scroll):
+      // a smaller grid with fewer words instead. Decided before play starts, never during it.
+      while (n > 6 && stage.closest('#view') && (board.clientWidth / n < MIN_CELL - 0.5 || SG.overflows())) {
+        n--;
+        wordCount = Math.min(level.count, n - 2);
+        puzzle = buildPuzzle(level, n, wordCount, script, themes);
+        render();
+        layout();
+      }
     }
 
     window.addEventListener('resize', layout);
@@ -632,13 +642,19 @@
     return {
       newGame: newGame,
       resize: layout,
-      // Shown on the "start a new puzzle?" page, so a stray tap cannot wipe out a long game.
+      // Shown on the level page while this puzzle is under way, above its "Keep Playing" button.
       progress: function () {
         return done || !foundCount ? null : t('ws.progress', foundCount, puzzle.placements.length);
       },
       destroy: function () {
         timers.clear();
         window.removeEventListener('resize', layout);
+      },
+      // for the playtest: jump to the finish screen
+      finish: function () {
+        puzzle.placements.forEach(function (p) { if (!p.found) markFound(p, p.cells[0]); });
+        timers.clear();
+        showWin();
       }
     };
   }

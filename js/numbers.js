@@ -23,7 +23,7 @@
   const SMALLER_SETS = [24, 20, 16, 12, 9];
   const GAP = 10;
   const WIN_PAUSE_MS = 2200;
-  const SIDE_BY_SIDE = '(min-width: 820px) and (orientation: landscape)'; // keep in step with style.css
+  const SIDE_BY_SIDE = '(min-width: 640px) and (orientation: landscape)'; // keep in step with style.css
   const SIDE_WIDTH = 340 + 28;
 
   function mount(stage, levelKey) {
@@ -39,7 +39,7 @@
       const top = wrap.getBoundingClientRect().top + window.pageYOffset;
       return {
         w: layoutEl.clientWidth - (sideBySide ? SIDE_WIDTH : 0),
-        h: window.innerHeight - top - (sideBySide ? 0 : foot.offsetHeight + 16) - 24
+        h: SG.bottom() - top - (sideBySide ? 0 : foot.offsetHeight + 12) - 10
       };
     }
 
@@ -185,6 +185,11 @@
       destroy: function () {
         timers.clear();
         window.removeEventListener('resize', layout);
+      },
+      // for the playtest: jump to the finish screen
+      finish: function () {
+        timers.clear();
+        showWin();
       }
     };
   }

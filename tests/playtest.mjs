@@ -288,6 +288,12 @@ try {
   await sleep(200);
   check('the level button opens the level page, which offers to carry on', await js(`location.hash === '#/wordsearch/levels' && !!document.querySelector('.levels-resume') && document.querySelector('.stage').hidden`) && (await js(`document.querySelector('.levels-resume-text').textContent`)).startsWith('You have found 1 of'), await js(`(document.querySelector('.levels-resume-text') || {}).textContent`));
   await shot('06b-ws-levels-resume');
+  await js(`document.querySelector('.levels-howto').click()`);
+  await sleep(250);
+  check('How to play opens from the level page, with a hand showing the move and a Back button', await js(`location.hash === '#/wordsearch/howto' && !!document.querySelector('.intro .demo-hand') && document.querySelector('.intro-start').textContent === 'Back'`));
+  await js(`document.querySelector('.intro-start').click()`);
+  await sleep(250);
+  check('Back returns to the level page, with the game still waiting', await js(`location.hash === '#/wordsearch/levels' && !!document.querySelector('.levels-resume')`));
   await resumeButton('Keep Playing');
   await sleep(200);
   check('Keep Playing returns to the same puzzle', (await js(`document.querySelector('.ws-board').textContent`)) === gridBefore && (await foundCount()) === 1 && (await js(`location.hash`)) === '#/wordsearch/easy');
@@ -1014,6 +1020,59 @@ try {
     await go('#/colouring/kite');
     check('offline: a game opens with no internet', await js(`!!document.querySelector('.col-picture')`));
     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  }
+
+  // ---------- Every screen fits on the screen: no scrolling, ever ----------
+  if (want('fit')) {
+    const SIZES = [
+      ['desktop', 1280, 800, false], ['laptop-short', 1280, 650, false],
+      ['tablet-landscape', 1024, 768, true], ['tablet-landscape-toolbars', 1024, 690, true], ['tablet-portrait', 768, 1024, true],
+      ['phone', 390, 844, true], ['phone-short', 390, 680, true], ['phone-small', 360, 640, true], ['phone-landscape', 844, 390, true]
+    ];
+    const games = await js(`SG.games.map(g => ({ key: g.key, levels: Object.keys(g.levels) }))`);
+    // How far the page reaches past the screen, and the smallest button/tile on it
+    const OVER = `(() => {
+      const d = document.documentElement;
+      const visible = [...document.querySelectorAll('.btn, .tile, .level-btn, .pressable')].filter(b => b.offsetParent && !b.closest('[hidden]'));
+      return { down: Math.max(d.scrollHeight, document.body.scrollHeight) - innerHeight, side: d.scrollWidth - innerWidth,
+        smallest: visible.length ? Math.min(...visible.map(b => Math.min(b.offsetWidth, b.offsetHeight))) : 999 };
+    })()`;
+    for (const [size, w, h, mobile] of SIZES) {
+      await viewport(w, h, mobile);
+      const bad = [];
+      const measure = async (name, shotName) => {
+        await sleep(120);
+        const o = await js(OVER);
+        if (o.down > 1 || o.side > 1 || o.smallest < 56) {
+          bad.push(`${name} (down ${o.down}, side ${o.side}, smallest ${o.smallest})`);
+          if (shotName) await shot('90-fit-' + size + '-' + shotName);
+        } else if (['home', 'wordsearch-levels', 'colouring-levels', 'sorting-intro', 'wordsearch-finish', 'resume', 'sorting-hard', 'colouring-flower', 'wordsearch-hard'].includes(shotName)) {
+          await shot('91-' + size + '-' + shotName);
+        }
+      };
+      for (const hash of ['#/', '#/settings']) { await go(hash); await measure(hash, hash.replace(/\W/g, '') || 'home'); }
+      for (const g of games) {
+        await js(`localStorage.removeItem('sg.seen.${g.key}')`);
+        await go('#/' + g.key);
+        await measure(g.key + ' first-time page', g.key + '-intro');
+        await seenAll();
+        await go('#/' + g.key + '/levels');
+        await measure(g.key + ' levels', g.key + '-levels');
+        for (const level of g.key === 'colouring' ? ['flower', 'rangoli'] : [g.levels[0], g.levels[g.levels.length - 1]]) {
+          await go('#/' + g.key + '/' + level);
+          await measure(g.key + ' ' + level, g.key + '-' + level);
+        }
+        await js(`SG.current().finish()`);
+        await measure(g.key + ' finish screen', g.key + '-finish');
+      }
+      // The level page while a game is under way (with Keep Playing at the top)
+      await go('#/tilematch/hard');
+      await js(`(() => { const t = [...document.querySelectorAll('.tm-tile')]; const f = t.map(x => x.querySelector('.tm-face').textContent); const j = f.indexOf(f[0], 1); t[0].click(); t[j].click(); })()`);
+      await js(`location.hash = '#/tilematch/levels'`);
+      await measure('level page with a game under way', 'resume');
+      check(`fits the screen at ${size} (${w}x${h}): every page, no scrolling, buttons at least 56px`, bad.length === 0, bad.join('; '));
+    }
+    await viewport(1280, 800, false);
   }
 
   // ---------- The first-time page of every game: a hand acts out the move ----------

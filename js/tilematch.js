@@ -124,7 +124,7 @@
       layoutEl.style.minHeight = '';
       const top = wrap.getBoundingClientRect().top + window.pageYOffset;
       const availW = wrap.clientWidth;
-      const availH = Math.max(260, window.innerHeight - top - 20);
+      const availH = SG.bottom() - top - 10;
       const gap = availW < 500 ? 10 : 16;
 
       const best = SG.bestGrid(tiles.length, availW, availH, gap, true);
@@ -134,7 +134,7 @@
       board.style.setProperty('--gap', gap + 'px');
 
       const layoutTop = layoutEl.getBoundingClientRect().top + window.pageYOffset;
-      layoutEl.style.minHeight = Math.max(0, window.innerHeight - layoutTop - 20) + 'px';
+      layoutEl.style.minHeight = Math.max(0, SG.bottom() - layoutTop - 4) + 'px';
     }
 
     function hidePending() {
@@ -235,6 +235,12 @@
       destroy: function () {
         timers.clear();
         window.removeEventListener('resize', layout);
+      },
+      // for the playtest: jump to the finish screen
+      finish: function () {
+        timers.clear();
+        turns = level.pairs + 2;
+        showWin();
       }
     };
   }

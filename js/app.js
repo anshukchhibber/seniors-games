@@ -3,8 +3,10 @@
 //   #/settings             sound and playing hand
 //   #/wordsearch           play straight away, at the level played last time (Easy the first time).
 //                          The very first time, a "How to play" page with one Start button comes first.
-//   #/wordsearch/levels    choose a level (and the how-to, and "carry on" if a game is under way)
+//   #/wordsearch/levels    choose a level (and "carry on" if a game is under way)
+//   #/wordsearch/howto     how to play: the same page as the first time, with a Back button
 //   #/wordsearch/easy      play this level
+// Every screen fits the screen exactly: nothing ever scrolls (see fitScreen below).
 // Using the address hash means the browser / tablet Back button always
 // goes to the previous screen instead of leaving the app.
 (function (SG) {
@@ -94,13 +96,6 @@
     return box;
   }
 
-  function howTo(game) {
-    return el('section', { class: 'howto' }, [
-      el('h2', { class: 'howto-title', text: t('howto') }),
-      demo(game, 'howto-art')
-    ].concat(t(game.text + '.howto').map(function (line) { return el('p', { text: line }); })));
-  }
-
   // ---------- Screens ----------
 
   function renderHome() {
@@ -108,10 +103,10 @@
 
     // The whole tile is the button: the game's picture and its name, nothing else to read.
     const tiles = SG.games.map(function (game) {
-      return link({ class: 'tile', href: '#/' + game.key, 'data-game': game.key }, [
+      return link({ class: 'tile', href: '#/' + game.key, 'data-game': game.key }, [el('span', { class: 'tile-inner' }, [
         el('span', { class: 'tile-art', 'aria-hidden': 'true' }, [game.illustration()]),
         el('h2', { class: 'tile-title', text: t(game.text + '.title') })
-      ]);
+      ])]);
     });
 
     // Each language is written in its own script, so its readers can find it whatever is showing now.
@@ -120,16 +115,14 @@
       route(); // redraw this page in the new language
     });
 
-    view.appendChild(el('div', { class: 'home' }, [
+    view.appendChild(el('div', { class: 'home', 'data-fit': '3' }, [
       el('header', { class: 'home-head' }, [
-        SG.sun(),
-        el('h1', { class: 'home-title', tabindex: '-1', text: t('appName') })
+        el('div', { class: 'home-brand' }, [SG.sun(), el('h1', { class: 'home-title', tabindex: '-1', text: t('appName') })]),
+        link({ class: 'btn btn-secondary home-settings', href: '#/settings' }, [SG.icon('settings'), el('span', { class: 'btn-text', text: t('settings') })])
       ]),
-      el('div', { class: 'tiles' }, tiles),
-      el('footer', { class: 'home-foot' }, [
-        language,
-        link({ class: 'btn btn-secondary home-settings', href: '#/settings' }, [SG.icon('settings'), t('settings')])
-      ])
+      // data-grid: laid out by fitScreen to suit the screen's shape (3 x 2, 2 x 3...)
+      el('div', { class: 'tiles', 'data-grid': '1.15', 'data-min-width': '150' }, tiles),
+      el('footer', { class: 'home-foot' }, [language])
     ]));
   }
 
@@ -146,28 +139,37 @@
       SG.store.get('hand', 'right'),
       function (value) { SG.store.set('hand', value); applyHand(); });
 
-    view.appendChild(bar(t('settings')));
-    view.appendChild(el('div', { class: 'settings' }, [sound, hand]));
+    view.appendChild(el('div', { class: 'screen', 'data-fit': '2' }, [bar(t('settings')), el('div', { class: 'settings' }, [sound, hand])]));
   }
 
-  // The first time a game is opened: a picture, three short lines, and one big Start button.
-  // After that the game simply starts; the same words stay on its level page.
-  function renderIntro(key, game) {
+  // How to play: a picture with a hand acting out the move, three short lines, and one big button.
+  //   'first': the first time a game is opened - "Start" plays it. Never shown by itself again.
+  //   'howto': from the level page's How to play button - "Back" returns there.
+  function introScreen(key, game, mode) {
     const title = t(game.text + '.title');
     document.title = title + ' – ' + t('appName');
-    const start = SG.iconButton('btn btn-lg intro-start', 'play', t('start'));
-    SG.onTap(start, function () {
-      seenNow[key] = true;
-      SG.store.set('seen.' + key, '1');
-      route(); // the same address now plays the game
+    const button = mode === 'first'
+      ? SG.iconButton('btn btn-lg intro-start', 'play', t('start'))
+      : SG.iconButton('btn btn-lg intro-start', 'back', t('back'));
+    SG.onTap(button, function () {
+      if (mode === 'first') {
+        seenNow[key] = true;
+        SG.store.set('seen.' + key, '1');
+        route(); // the same address now plays the game
+      } else if (howtoFromApp) history.back();
+      else location.hash = '#/' + key + '/levels';
     });
-    view.appendChild(bar(title));
-    view.appendChild(el('div', { class: 'intro' }, [
-      demo(game, 'intro-art'),
-      el('h2', { class: 'intro-title', text: t('howto') }),
-      el('div', { class: 'intro-lines' }, t(game.text + '.howto').map(function (line) { return el('p', { text: line }); })),
-      start
-    ]));
+    return el('div', { class: 'screen', 'data-fit': '4' }, [
+      bar(title),
+      el('div', { class: 'intro' }, [
+        demo(game, 'intro-art'),
+        el('div', { class: 'intro-words' }, [
+          el('h2', { class: 'intro-title', text: t('howto') }),
+          el('div', { class: 'intro-lines' }, t(game.text + '.howto').map(function (line) { return el('p', { text: line }); })),
+          button
+        ])
+      ])
+    ]);
   }
 
   // "Carry on": shown at the top of the level page when a game is under way.
@@ -196,30 +198,33 @@
     document.title = title + ' – ' + t('appName');
     const last = SG.store.get('last.' + key, '');
     const progress = live && live.resumable ? live.game.progress() : null;
-    const phoneNote = t(game.text + '.level.phone'); // only some games shrink on a phone
 
     const options = Object.keys(game.levels).map(function (levelKey) {
       const words = [
         el('span', { class: 'level-name', text: levelName(game, levelKey) }),
         el('span', { class: 'level-detail', text: game.detail(levelKey) })
       ];
-      if (phoneNote && levelKey === 'hard') words.push(el('span', { class: 'level-detail phone-only', text: phoneNote }));
       if (progress && levelKey === live.levelKey) words.push(el('span', { class: 'level-last', text: t('levels.playing') }));
       else if (!progress && levelKey === last) words.push(el('span', { class: 'level-last', text: t('levels.last') }));
-      return link({ class: 'level-btn', href: '#/' + key + '/' + levelKey }, [
-        game.preview(levelKey),
+      // The inside is laid out by the card's own size (container queries in style.css): picture
+      // beside the words in a wide card, above them in a tall one, the detail left out in a small one.
+      return link({ class: 'level-btn', href: '#/' + key + '/' + levelKey }, [el('span', { class: 'level-inner' }, [
+        el('span', { class: 'level-pic' }, [game.preview(levelKey)]),
         el('span', { class: 'level-words' }, words),
         SG.icon('chevron')
-      ]);
+      ])]);
     });
 
     const page = [bar(title)];
     if (progress) page.push(resumeBox(game, live, progress));
     page.push(el('div', { class: 'levels-page' + (game.chooser ? ' levels-gallery' : '') }, [
-      el('div', { class: 'levels' }, [el('h2', { class: 'levels-title', text: tg(game, 'choose', 'levels.choose') })].concat(options)),
-      howTo(game)
+      el('div', { class: 'levels-head' }, [
+        el('h2', { class: 'levels-title', text: tg(game, 'choose', 'levels.choose') }),
+        link({ class: 'btn btn-secondary levels-howto', href: '#/' + key + '/howto' }, [SG.icon('help'), el('span', { class: 'btn-text', text: t('howto') })])
+      ]),
+      el('div', { class: 'levels', 'data-grid': game.chooser ? '0.8' : '1.3' }, options)
     ]));
-    return el('div', { class: 'levels-screen' }, page);
+    return el('div', { class: 'screen levels-screen', 'data-fit': '4' }, page);
   }
 
   function renderGame(key, game, levelKey) {
@@ -247,13 +252,17 @@
     current = null;
   }
 
-  // Opens the level page over the game under way, which is only hidden.
-  function park(game, backIsGame) {
-    current.backIsGame = backIsGame;
-    current.resumable = !!current.game.progress();
-    current.top.hidden = true;
-    current.stage.hidden = true;
-    current.levels = renderLevels(current.key, game, current);
+  // Opens the level page (or How to play) over the game under way, which is only hidden.
+  function park(game, backIsGame, sub) {
+    if (!current.levels) {
+      current.backIsGame = backIsGame;
+      current.resumable = !!current.game.progress();
+      current.top.hidden = true;
+      current.stage.hidden = true;
+    } else {
+      view.removeChild(current.levels);
+    }
+    current.levels = sub === 'howto' ? introScreen(current.key, game, 'howto') : renderLevels(current.key, game, current);
     view.appendChild(current.levels);
   }
 
@@ -273,6 +282,7 @@
 
   let firstRoute = true;
   let lastHash = null;
+  let howtoFromApp = false; // How to play was opened from within the app, so Back can go back
 
   function route() {
     const hash = location.hash;
@@ -281,10 +291,11 @@
     const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
     const key = parts[0], sub = parts[1];
     const game = gameByKey(key);
+    if (sub === 'howto') howtoFromApp = cameFrom !== null;
 
     if (current && game && key === current.key) {
-      if (sub === 'levels' && !current.levels) {
-        park(game, cameFrom === current.hash);
+      if (sub === 'levels' || sub === 'howto') {
+        park(game, cameFrom === current.hash, sub);
         return settle();
       }
       // Back to the game under way (Keep Playing, the tablet's Back button, or its own level)
@@ -302,15 +313,42 @@
       if (key === 'settings') renderSettings();
       else renderHome();
     } else if (sub === 'levels') view.appendChild(renderLevels(key, game, null));
-    else if (!seen(key)) renderIntro(key, game);
+    else if (sub === 'howto') view.appendChild(introScreen(key, game, 'howto'));
+    else if (!seen(key)) view.appendChild(introScreen(key, game, 'first'));
     else if (game.levels[sub]) renderGame(key, game, sub);
     else if (game.chooser) view.appendChild(renderLevels(key, game, null));
     else renderGame(key, game, startLevel(key, game));
     settle();
   }
 
+  // Lays out the tile and level grids for this screen's shape, then - only if the page is still
+  // too big - takes away extras step by step (SG.fitSteps). Runs when a screen opens and when the
+  // tablet is turned; never in the middle of play.
+  function fitScreen() {
+    const shown = function (node) { return !node.closest('[hidden]'); };
+    const grids = [].slice.call(view.querySelectorAll('[data-grid]')).filter(shown);
+    function layoutGrids() {
+      grids.forEach(function (grid) {
+        const gap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+        const best = SG.gridFor(grid.children.length, grid.clientWidth, grid.clientHeight, gap, +grid.getAttribute('data-grid'), +grid.getAttribute('data-min-width') || 0);
+        grid.style.setProperty('--cols', best.cols);
+        grid.style.setProperty('--rows', best.rows);
+      });
+    }
+    layoutGrids();
+    [].slice.call(view.querySelectorAll('[data-fit]')).filter(shown).forEach(SG.fitSteps);
+    layoutGrids();
+  }
+
+  let fitTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitScreen, 120);
+  });
+
   function settle() {
     window.scrollTo(0, 0);
+    fitScreen();
     // Tell screen readers a new screen has opened (but leave focus alone on first load).
     if (!firstRoute) {
       const heading = [].slice.call(view.querySelectorAll('h1')).filter(function (h) { return !h.closest('[hidden]'); })[0];
@@ -354,6 +392,9 @@
   document.addEventListener('contextmenu', function (e) {
     if (lastPointerType !== 'mouse') e.preventDefault();
   });
+
+  // for the playtest: the game being played
+  SG.current = function () { return current && current.game; };
 
   applyHand();
   window.addEventListener('hashchange', route);

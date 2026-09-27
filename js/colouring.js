@@ -135,7 +135,7 @@
     ]) }
   };
 
-  const SIDE_BY_SIDE = '(min-width: 820px) and (orientation: landscape)'; // keep in step with style.css
+  const SIDE_BY_SIDE = '(min-width: 640px) and (orientation: landscape)'; // keep in step with style.css
 
   function saved(key) {
     try {
@@ -257,8 +257,8 @@
       const top = pictureBox.getBoundingClientRect().top + window.pageYOffset;
       const side = layoutEl.querySelector('.col-side');
       const availW = sideBySide ? layoutEl.clientWidth - side.offsetWidth - 28 : layoutEl.clientWidth;
-      const availH = window.innerHeight - top - (sideBySide ? 0 : side.offsetHeight + 16) - 20;
-      const size = Math.floor(SG.clamp(Math.min(availW, availH), 260, 760));
+      const availH = SG.bottom() - top - (sideBySide ? 0 : side.offsetHeight + 16) - 10;
+      const size = Math.floor(SG.clamp(Math.min(availW, availH), 150, 760));
       pictureBox.style.width = size + 'px';
       pictureBox.style.height = size + 'px';
     }
@@ -433,6 +433,11 @@
       },
       destroy: function () {
         window.removeEventListener('resize', layout);
+      },
+      // for the playtest: colour every part and press "I'm Finished"
+      finish: function () {
+        picture.parts.forEach(function (p, i) { if (p[0] !== '-') fills[p[0]] = COLOURS[i % 11].value; });
+        finish();
       }
     };
   }

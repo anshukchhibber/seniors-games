@@ -44,7 +44,9 @@ window.SG = window.SG || {};
     eye: ['M2.5 12s3.6-6.5 9.5-6.5S21.5 12 21.5 12s-3.6 6.5-9.5 6.5S2.5 12 2.5 12z', 'M12 9.3a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 1 1 0-5.4z'],
     bulb: ['M9.5 18h5', 'M10.5 21h3', 'M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z'],
     undo: ['M9 13.5L4.5 9 9 4.5', 'M4.5 9h10a5.5 5.5 0 0 1 0 11H11'],
-    check: ['M5 12.5l4.5 4.5L19 7.5']
+    check: ['M5 12.5l4.5 4.5L19 7.5'],
+    back: ['M10 5.5L3.5 12l6.5 6.5', 'M4 12h16.5'],
+    help: ['M12 3a9 9 0 1 1 0 18 9 9 0 1 1 0-18z', 'M9.4 9.6a2.7 2.7 0 1 1 3.9 2.4c-.8.4-1.3 1-1.3 1.9v.5', 'M12 17.3v.2']
   };
 
   SG.icon = function (name) {
@@ -206,6 +208,45 @@ window.SG = window.SG || {};
     return best;
   };
 
+  // ---------- Everything fits on one screen ----------
+  // The app is a frame exactly the size of the screen; nothing ever needs scrolling.
+
+  // Where the page must end: the bottom of the app's frame (above the tablet's own bars).
+  SG.bottom = function () {
+    const view = document.getElementById('view');
+    return view ? view.getBoundingClientRect().bottom : window.innerHeight;
+  };
+
+  // Does anything reach past the edge of the screen?
+  SG.overflows = function () {
+    const d = document.documentElement;
+    return Math.max(d.scrollHeight, document.body.scrollHeight) > window.innerHeight + 1 || d.scrollWidth > window.innerWidth + 1;
+  };
+
+  // "Never shrink, reduce instead", for whole pages: `root` has data-fit="n", and style.css says
+  // what goes at each step .fit-1 ... .fit-n (tighter spacing first, then extras such as a
+  // heading or a third line of help). Steps are added only while the page is too big.
+  SG.fitSteps = function (root) {
+    const steps = +root.getAttribute('data-fit') || 0;
+    for (let i = 1; i <= steps; i++) root.classList.remove('fit-' + i);
+    for (let i = 1; i <= steps && SG.overflows(); i++) root.classList.add('fit-' + i);
+  };
+
+  // The columns that make `count` things biggest in a w x h space, each ideally `aspect` times as
+  // wide as it is tall (the home tiles, the levels, the pictures). Full rows are preferred (no
+  // lopsided gaps), and no column is narrower than `minWidth` when that can be helped (names fit).
+  SG.gridFor = function (count, w, h, gap, aspect, minWidth) {
+    let best = null;
+    for (let cols = 1; cols <= count; cols++) {
+      const rows = Math.ceil(count / cols);
+      const cw = (w - gap * (cols - 1)) / cols, ch = (h - gap * (rows - 1)) / rows;
+      if (cols > 1 && cw < (minWidth || 0)) break;
+      const score = Math.min(cw / aspect, ch) * Math.sqrt(count / (cols * rows));
+      if (!best || score > best.score + 0.5) best = { cols: cols, rows: rows, score: score };
+    }
+    return best;
+  };
+
   // localStorage can throw (private mode, file:// in some browsers) - never let it break a game.
   SG.store = {
     get: function (key, fallback) {
@@ -306,6 +347,9 @@ window.SG = window.SG || {};
       actions: [again, SG.link({ class: 'btn btn-secondary', href: levelsHref }, [SG.icon(options.backIcon || 'levels'), SG.el('span', { class: 'btn-text', text: options.back || SG.t('changeLevel') })])]
     });
     if (!SG.reducedMotion()) wrap.appendChild(SG.confetti());
+    // Once it is on the page: if it is too tall for the screen, take away extras step by step
+    wrap.setAttribute('data-fit', '4');
+    requestAnimationFrame(function () { if (wrap.isConnected) SG.fitSteps(wrap); });
     return wrap;
   };
 })(window.SG);

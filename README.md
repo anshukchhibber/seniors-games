@@ -23,9 +23,10 @@ accounts, and no internet needed once it has been opened.
   level page).
 - **In a game** the top bar is always **Home** · the game's name · **the level being played**
   ("Medium", or the picture's name). That last button is how to change level.
-- **The level page** lists the levels next to How to play. If a game is under way, it is kept
-  (only hidden) and the page opens with **Keep Playing** as the big button, plus New Game. The
-  tablet's Back button also goes back to the same game.
+- **The level page** lists the levels, with a **How to play** button (the first-time page again,
+  with a Back button). If a game is under way, it is kept (only hidden) and the page opens with
+  **Keep Playing** as the big button, plus New Game. The tablet's Back button also goes back to the
+  same game.
 - **Finishing** shows what was done (the words, the pairs, the full baskets, the coloured picture)
   in the game's colour, with a warm chord and a short burst of paper confetti; then **Play Again**
   or **Change Level**. No scores to beat, no streaks.
@@ -63,6 +64,16 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
   waves for water, clouds for sky, sun for hot, snow for cold) and carries a picture label of
   something that goes in it; after a second try, a hand points at the right basket. In Number
   Hunt, the number to find is drawn exactly like the tokens to tap.
+- **Everything fits on one screen - nothing ever scrolls.** The app is a frame exactly the size of
+  the screen, on any phone, tablet or computer, held either way. Pictures and tiles grow and shrink
+  to the space; words keep their size. The home tiles and the level choices arrange themselves to
+  suit the screen's shape (3 x 2 on a tablet held sideways, 2 x 3 upright, picture beside the name
+  on a phone held sideways). If a page is still too tall, extras are taken away in a set order
+  (tighter spacing, then a heading, then a third line of help...): `data-fit` on the page and
+  `.fit-1`, `.fit-2`... in `css/style.css`, applied by `SG.fitSteps`. Games step down the same
+  way (a smaller word grid, fewer numbers, two pictures on the table instead of four). All of it is
+  decided when a page opens or the tablet is turned, never mid-game. `ONLY=fit` in the playtest
+  checks every page at nine screen sizes.
 - **Nothing pops up.** Every screen is a plain page. "Home" is always top-left (and always navy, the
   same landmark in every game). "How to play" lives permanently on the level page. A game under way
   is never thrown away by opening the level page: **Keep Playing** is the big button there.
@@ -94,9 +105,8 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 - **Colour is never the only signal.** Found words get an outlined band, a tick and a strike-through;
   matched tiles get a thick green edge and a solid ✓ badge; chosen settings are filled *and* ticked.
 - **Never shrink, reduce instead.** When a screen is too small, a game uses fewer things at full
-  size rather than more things made tiny: a phone gets a 10 × 10 word grid (8 × 8 in Hindi, whose
-  aksharas are wider), fewer numbers, and two pictures on the sorting table instead of four. This is
-  decided once, before a game starts.
+  size rather than more things made tiny: a smaller word grid with fewer words, fewer numbers, and
+  two pictures on the sorting table instead of four. This is decided once, before a game starts.
 - **Hindi is typeset as Hindi.** No letter-spacing (it breaks the headline joining the letters),
   taller lines for vowel signs, and no strike-through on found words (it makes Devanagari unreadable).
   Newer emoji (auto rickshaw, kite, lamp, lotus) are left out on tablets that cannot draw them.
@@ -170,4 +180,4 @@ touch and keyboard input, at desktop, phone and tablet sizes, and saves screensh
 `tests/.output/screenshots`. Needs Node 22+ and Edge or Chrome; no npm packages.
 `ONLY=colouring,sorting node tests/playtest.mjs` runs just those parts (`classic` is the home page,
 the first-time page, settings and the first three games; also `pattern`, `sorting`, `colouring`,
-`hindi`, `strings`, `offline`, `home`).
+`hindi`, `strings`, `offline`, `intro`, `fit` - every page at nine screen sizes - and `home`).

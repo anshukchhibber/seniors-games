@@ -105,7 +105,8 @@
   }
 
   const TABLE = 4;       // pictures on the table at once
-  const MIN_CARD = 130;  // px. If four cannot be this big on the screen, two are shown instead.
+  const MIN_CARD = 130;  // px. If four cannot be this big on the screen, two are shown instead
+  const SMALLEST_CARD = 90; //   (and on a very short screen, the two may be a little smaller).
   const MAX_CARD = 200;
   const GAP = 16;
 
@@ -178,19 +179,21 @@
 
     // The table takes all the room above the baskets; the pictures are as big as it allows.
     function cardSize() {
-      const top = table.getBoundingClientRect().top + window.pageYOffset;
+      const top = table.getBoundingClientRect().top;
       const row = layoutEl.lastChild;
-      const availH = window.innerHeight - top - row.offsetHeight - 2 * GAP - 12;
+      // On a wide, short screen the baskets stand in a column beside the table (see style.css)
+      const beside = row.getBoundingClientRect().left >= table.getBoundingClientRect().right - 1;
+      const availH = SG.bottom() - top - (beside ? 0 : row.offsetHeight + GAP) - 12;
       const grid = SG.bestGrid(slotCount, table.clientWidth, availH, GAP);
       return { size: Math.floor(Math.min(grid.cell, MAX_CARD)), cols: grid.cols };
     }
 
     function layout() {
       if (!table) return;
-      const top = layoutEl.getBoundingClientRect().top + window.pageYOffset;
-      layoutEl.style.minHeight = Math.max(0, window.innerHeight - top - 22) + 'px';
+      const top = layoutEl.getBoundingClientRect().top;
+      layoutEl.style.minHeight = Math.max(0, SG.bottom() - top - 8) + 'px';
       const fit = cardSize();
-      table.style.setProperty('--card', Math.max(fit.size, 100) + 'px');
+      table.style.setProperty('--card', Math.max(fit.size, SMALLEST_CARD) + 'px');
       table.style.setProperty('--cols', fit.cols);
     }
 
@@ -422,6 +425,15 @@
       destroy: function () {
         timers.clear();
         window.removeEventListener('resize', layout);
+      },
+      // for the playtest: jump to the finish screen
+      finish: function () {
+        timers.clear();
+        queue.slice(placed).forEach(function (entry) {
+          const b = baskets.filter(function (x) { return x.key === entry.group; })[0];
+          b.contents.appendChild(el('span', { text: entry.item[0] }));
+        });
+        showWin();
       }
     };
   }

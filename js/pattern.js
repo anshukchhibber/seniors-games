@@ -94,16 +94,24 @@
       stage.appendChild(layoutEl);
     }
 
-    // The pads get as big as the screen allows, with the Watch button still in view.
+    // The pads get as big as the screen allows, with the Watch button still in view. On a wide,
+    // short screen they go in one row, and Watch moves beside them (see style.css).
     function layout() {
       if (!board) return;
       const wrap = board.parentNode;
       const foot = layoutEl.lastChild;
-      const top = wrap.getBoundingClientRect().top + window.pageYOffset;
+      const top = wrap.getBoundingClientRect().top;
+      const beside = foot.getBoundingClientRect().top < wrap.getBoundingClientRect().bottom - 1;
       const availW = wrap.clientWidth;
-      const availH = Math.max(200, window.innerHeight - top - foot.offsetHeight - 40);
-      const grid = SG.bestGrid(pads.length, availW, availH, GAP, true);
-      const size = Math.floor(SG.clamp(grid.cell, 90, 220));
+      const availH = SG.bottom() - top - (beside ? 0 : foot.offsetHeight + 16) - 10;
+      let grid = null;
+      for (let cols = 1; cols <= pads.length; cols++) {
+        if (pads.length % cols) continue; // only full rows
+        const rows = pads.length / cols;
+        const cell = Math.min((availW - GAP * (cols - 1)) / cols, (availH - GAP * (rows - 1)) / rows);
+        if (!grid || cell > grid.cell) grid = { cols: cols, cell: cell };
+      }
+      const size = Math.floor(SG.clamp(grid.cell, 72, 220));
       board.style.setProperty('--cols', grid.cols);
       board.style.setProperty('--pad-size', size + 'px');
       board.style.setProperty('--gap', GAP + 'px');
@@ -239,8 +247,12 @@
         timers.clear();
         window.removeEventListener('resize', layout);
       },
-      // for the playtest: the pattern being played
-      peek: function () { return sequence.slice(); }
+      // for the playtest: the pattern being played, and a jump to the finish screen
+      peek: function () { return sequence.slice(); },
+      finish: function () {
+        timers.clear();
+        showWin();
+      }
     };
   }
 
