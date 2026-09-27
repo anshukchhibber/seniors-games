@@ -69,6 +69,46 @@
     pad: function (freq) {
       note(freq, 0, 0.5, 0.14);
     },
+    // A harmonium reed: starts at once and sounds until the returned function is called (the key
+    // is let go), then fades. Two slightly different reeds and a soft one an octave down give the
+    // harmonium's warm, buzzy sound.
+    reed: function (freq) {
+      const ac = on ? context() : null;
+      if (!ac) return function () {};
+      const start = ac.currentTime;
+      const out = ac.createGain();
+      const filter = ac.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = Math.min(freq * 5, 4000);
+      filter.Q.value = 0.7;
+      out.gain.setValueAtTime(0.0001, start);
+      out.gain.linearRampToValueAtTime(0.1, start + 0.05);
+      filter.connect(out);
+      out.connect(ac.destination);
+      const oscs = [['sawtooth', 1, 0.55], ['sawtooth', 1.004, 0.45], ['square', 0.5, 0.25]].map(function (r) {
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        osc.type = r[0];
+        osc.frequency.value = freq * r[1];
+        g.gain.value = r[2];
+        osc.connect(g);
+        g.connect(filter);
+        osc.start(start);
+        return osc;
+      });
+      let released = false;
+      function release() {
+        if (released) return;
+        released = true;
+        const now = Math.max(ac.currentTime, start + 0.12);
+        out.gain.cancelScheduledValues(now);
+        out.gain.setValueAtTime(out.gain.value || 0.1, now);
+        out.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+        oscs.forEach(function (osc) { osc.stop(now + 0.35); });
+      }
+      setTimeout(release, 4000); // a key held down for ages still stops in the end
+      return release;
+    },
     // A warm chord that rises: C-E-G together, then the high C.
     win: function () {
       [523.25, 659.25, 783.99].forEach(function (freq, i) {

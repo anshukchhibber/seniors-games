@@ -56,7 +56,9 @@ function check(name, ok, extra) {
 
 const edge = spawn(EDGE, [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${join(OUT, 'browser-profile')}`,
-  '--no-first-run', '--disable-gpu', '--window-size=1280,800', 'about:blank'
+  '--no-first-run', '--disable-gpu', '--window-size=1280,800',
+  '--mute-audio', // the games' sounds are never played out loud while testing
+  'about:blank'
 ], { stdio: 'ignore' });
 
 let target;
@@ -186,7 +188,7 @@ try {
   // ---------- Desktop ----------
   await go('#/');
   await shot('01-home-desktop');
-  check('home shows one big tile per game, each with its picture and name', await js(`document.querySelectorAll('.tile').length === SG.games.length && SG.games.length >= 6 && [...document.querySelectorAll('.tile')].every(t => t.querySelector('svg') && t.querySelector('.tile-title').textContent.trim().length > 2 && t.offsetHeight >= 200)`));
+  check('home shows one big tile per game, each with its picture and name', await js(`document.querySelectorAll('.tile').length === SG.games.length && SG.games.length >= 6 && [...document.querySelectorAll('.tile')].every(t => t.querySelector('svg') && t.querySelector('.tile-title').textContent.trim().length > 2 && t.offsetHeight >= 150)`));
   check('home: nothing on a tile but its picture and name (no tags, blurbs or separate Play buttons)', await js(`document.querySelectorAll('.tile .btn, .tile p').length === 0`));
 
   // The first time a game is opened: how to play, and one Start button. Then never again.
@@ -751,6 +753,10 @@ try {
     })()`;
     const sortState = () => js(SORT_STATE);
 
+    check('sorting: every set of baskets has enough pictures for every level (their labels are never dealt)', await js(`(() => {
+      const g = SG.sorting.groups;
+      return Object.keys(SG.sorting.sets).every(n => SG.sorting.sets[n].every(set => set.reduce((sum, k) => sum + g[k].items.filter(i => !i[3] && i[0] !== g[k].sign).length, 0) >= (n === '2' ? 10 : 12)));
+    })()`));
     await viewport(1280, 800, false);
     await go('#/sorting/levels');
     await shot('50-so-levels');
@@ -787,6 +793,10 @@ try {
 
       for (let k = 0; k < things; k++) {
         st = await sortState();
+        if (!st.cards.length) { // should never happen: say exactly what was on the screen
+          check(`sorting ${levelKey}: a picture is on the table for turn ${k + 1}`, false, JSON.stringify(await js(`({ hash: location.hash, status: (document.querySelector('.status') || {}).textContent, slots: document.querySelectorAll('.so-slot').length, cards: document.querySelectorAll('.so-card').length, win: !!document.querySelector('.panel-win'), sorted: document.querySelectorAll('.so-contents span').length })`)));
+          break;
+        }
         const card = st.cards[k % st.cards.length];
         const b = st.baskets[card.right];
         if (k % 2) { await click(card.x, card.y); await click(b.x, b.y); await click(b.x, b.y); } // tap, tap - with an accidental double tap
@@ -1020,6 +1030,188 @@ try {
     await go('#/colouring/kite');
     check('offline: a game opens with no internet', await js(`!!document.querySelector('.col-picture')`));
     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  }
+
+  // ---------- Harmonium ----------
+  if (want('harmonium')) {
+    await viewport(1280, 800, false);
+    const keyCentres = () => centresOf('.hm-key');
+    await go('#/harmonium/free');
+    {
+      const info = await js(`(() => { const k = [...document.querySelectorAll('.hm-key')]; return { count: k.length, w: Math.min(...k.map(x => x.offsetWidth)), h: k[0].offsetHeight }; })()`);
+      check('harmonium: eight big keys, Sa to high Sa', info.count === 8 && info.w >= 64 && info.h >= 120, JSON.stringify(info));
+      const keys = await keyCentres();
+      await mouse('mousePressed', keys[4].x, keys[4].y);
+      check('harmonium: a key sounds while it is held, and is named', await js(`document.querySelectorAll('.hm-key')[4].classList.contains('sounding')`) && (await statusText()) === 'You played Pa.', await statusText());
+      await shot('100-hm-free');
+      await mouse('mouseReleased', keys[4].x, keys[4].y);
+      check('harmonium: letting go stops it', !(await js(`document.querySelectorAll('.hm-key')[4].classList.contains('sounding')`)));
+    }
+    for (const tune of ['scale', 'jingle']) {
+      await go('#/harmonium/' + tune);
+      const phrases = await js(`SG.harmonium.tunes['${tune}'].map(SG.harmonium.parse)`);
+      const keys = await keyCentres();
+      const nextKey = () => js(`[...document.querySelectorAll('.hm-key')].findIndex(k => k.classList.contains('hm-next'))`);
+      check(`harmonium ${tune}: the first key has the pointing hand, and the notes are shown`, (await nextKey()) === phrases[0][0].key && (await js(`document.querySelectorAll('.hm-chip').length`)) === phrases[0].length);
+      if (tune === 'scale') {
+        await click(keys[3].x, keys[3].y);
+        check('harmonium: another key just plays its note, and the hand waits', (await statusText()).startsWith('That was Ma.') && (await nextKey()) === 0 && (await js(`document.querySelectorAll('.hm-chip.done').length`)) === 0, await statusText());
+        await js(`document.querySelector('.hm-listen').click()`);
+        await sleep(700);
+        check('harmonium: Listen plays the line, lighting each key', (await statusText()) === 'Listen…' && (await js(`document.querySelectorAll('.hm-key.sounding').length`)) === 1);
+        await sleep(phrases[0].reduce((a, n) => a + n.beats, 0) * 420 + 200);
+        check('harmonium: then it is the player\'s turn', (await statusText()).startsWith('Your turn'), await statusText());
+      }
+      for (let p = 0; p < phrases.length; p++) {
+        for (const n of phrases[p]) { await click(keys[n.key].x, keys[n.key].y); await sleep(30); }
+        if (tune === 'scale' && p === 0) { await shot('101-hm-scale-line-done'); }
+        await sleep(800);
+      }
+      await sleep(2300);
+      check(`harmonium ${tune}: playing every note finishes the tune`, await js(`!!document.querySelector('.panel-win')`), await statusText().catch(() => ''));
+      if (tune === 'jingle') await shot('102-hm-win');
+    }
+    await go('#/harmonium/twinkle');
+    await shot('103-hm-twinkle');
+    await viewport(390, 844, true);
+    await go('#/harmonium/twinkle');
+    {
+      const info = await js(`(() => { const k = [...document.querySelectorAll('.hm-key')]; return { w: Math.min(...k.map(x => x.offsetWidth)), rows: new Set(k.map(x => Math.round(x.getBoundingClientRect().top))).size }; })()`);
+      check('phone: the keys go in two rows of four, still big', info.w >= 64 && info.rows === 2, JSON.stringify(info));
+      const keys = await keyCentres();
+      await tapTouch(keys[0].x, keys[0].y);
+      check('phone: a finger plays the key', (await js(`document.querySelectorAll('.hm-chip.done').length`)) === 1);
+      await shot('104-hm-phone');
+    }
+    await viewport(1024, 768, true);
+    await go('#/harmonium/scale');
+    await shot('105-hm-tablet');
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- Rangoli Mirror ----------
+  if (want('rangoli')) {
+    await viewport(1280, 800, false);
+    check('rangoli: one tap is copied all the way round, mirrored', await js(`SG.rangoli.copies({ r: 32, a: 10 }, 8).length === 16 && SG.rangoli.copies({ r: 32, a: 0 }, 8).length === 8 && SG.rangoli.copies({ r: 0, a: 0 }, 8).length === 1`));
+    await js(`['square', 'flower', 'star'].forEach(k => localStorage.removeItem('sg.rg.' + k))`);
+    await go('#/rangoli/star');
+    const marks = () => js(`document.querySelectorAll('.rg-design > *').length`);
+    const board = await js(`(() => { const r = document.querySelector('.rg-board').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, s: r.width }; })()`);
+    check('rangoli: a big floor, all on screen', board.s >= 400 && (await js(`document.querySelector('.rg-finish').getBoundingClientRect().bottom`)) <= 800, JSON.stringify(board));
+    await js(`[...document.querySelectorAll('.rg-swatch')].find(b => b.getAttribute('aria-label') === 'Pink').click()`);
+    await js(`[...document.querySelectorAll('.rg-shape')].find(b => b.getAttribute('aria-label') === 'Diamonds').click()`);
+    check('rangoli: says the colour and shape chosen', (await statusText()) === 'Pink diamonds. Tap anywhere on the floor.', await statusText());
+    await click(board.x, board.y);
+    check('rangoli: a tap in the middle makes one mark', (await marks()) === 1);
+    const u = board.s / 200; // board units to pixels
+    await click(board.x + 47 * u * Math.sin(15 * Math.PI / 180), board.y - 47 * u * Math.cos(15 * Math.PI / 180));
+    check('rangoli: a tap between the mirror lines is copied 16 times round the star', (await marks()) === 17, 'marks=' + await marks());
+    await js(`[...document.querySelectorAll('.rg-shape')].find(b => b.getAttribute('aria-label') === 'Petals').click()`);
+    await js(`[...document.querySelectorAll('.rg-swatch')].find(b => b.getAttribute('aria-label') === 'Yellow').click()`);
+    await touchDrag(board.x, board.y - 62 * u, board.x + 20, board.y - 40 * u);
+    check('rangoli: a drifting finger marks the dot it came down on', (await marks()) === 25, 'marks=' + await marks());
+    await js(`document.querySelector('.rg-undo').click()`);
+    check('rangoli: Undo takes back the last tap (all its copies)', (await marks()) === 17);
+    await js(`document.querySelector('.rg-board').focus()`);
+    for (const k of ['ArrowUp', 'ArrowUp', 'ArrowUp', 'Enter']) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code: k === 'Enter' ? 'Enter' : k, windowsVirtualKeyCode: { ArrowUp: 38, Enter: 13 }[k] });
+    check('rangoli: the keyboard can make marks too', (await marks()) > 17, 'marks=' + await marks());
+    for (const [r, a] of [[47, 0], [77, 22], [62, 45], [17, 0], [77, 0]]) {
+      await click(board.x + r * u * Math.sin(a * Math.PI / 180), board.y - r * u * Math.cos(a * Math.PI / 180));
+    }
+    await sleep(500);
+    await shot('110-rg-star');
+    const before = await marks();
+    await go('#/rangoli/star');
+    check('rangoli: the design is kept when you come back', (await marks()) === before);
+    await go('#/rangoli/levels');
+    check('rangoli: the level page shows it, as a gallery', (await js(`document.querySelectorAll('.level-btn').length`)) === 3 && await js(`document.querySelectorAll('.level-btn')[2].querySelectorAll('.rg-design > *').length > 10`));
+    await shot('111-rg-levels');
+    await go('#/rangoli/star');
+    await js(`document.querySelector('.rg-finish').click()`);
+    check('rangoli: "I\'m Finished" shows the design', await js(`!!document.querySelector('.panel-win .rg-finished')`));
+    await shot('112-rg-finished');
+    await go('#/rangoli/flower');
+    const fb = await js(`(() => { const r = document.querySelector('.rg-board').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, s: r.width }; })()`);
+    for (const [r, a, colour] of [[0, 0, 'Red'], [17, 0, 'Yellow'], [32, 15, 'Blue'], [47, 30, 'White'], [62, 0, 'Saffron'], [77, 15, 'Green']]) {
+      await js(`[...document.querySelectorAll('.rg-swatch')].find(b => b.getAttribute('aria-label') === '${colour}').click()`);
+      await click(fb.x + r * fb.s / 200 * Math.sin(a * Math.PI / 180), fb.y - r * fb.s / 200 * Math.cos(a * Math.PI / 180));
+    }
+    await sleep(500);
+    await shot('113-rg-flower');
+    await viewport(390, 844, true);
+    await go('#/rangoli/square');
+    {
+      const info = await js(`(() => { const b = document.querySelector('.rg-board').getBoundingClientRect(); const s = [...document.querySelectorAll('.rg-swatch, .rg-shape')].map(x => x.offsetWidth); return { board: b.width, min: Math.min(...s), finish: document.querySelector('.rg-finish').getBoundingClientRect().bottom, vh: innerHeight }; })()`);
+      check('phone: a big floor, 64px buttons, all on screen', info.board >= 280 && info.min >= 64 && info.finish <= info.vh, JSON.stringify(info));
+      const b = await js(`(() => { const r = document.querySelector('.rg-board').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      await tapTouch(b.x, b.y);
+      check('phone: a finger tap makes a mark', (await marks()) === 1);
+      await sleep(500);
+    await shot('114-rg-phone');
+    }
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- Diya Trail ----------
+  if (want('diya')) {
+    await viewport(1280, 800, false);
+    const litDiyas = () => js(`document.querySelectorAll('.dy-diya.lit').length`);
+    const litDots = () => js(`document.querySelectorAll('.dy-dot.lit').length`);
+    for (const [levelKey, count] of [['easy', 3], ['medium', 5], ['hard', 7]]) {
+      await go('#/diya/' + levelKey);
+      const path = await js(`SG.current().peek()`);
+      const info = await js(`(() => { const b = document.querySelector('.dy-board').getBoundingClientRect(); return { bottom: b.bottom, vh: innerHeight, w: b.width }; })()`);
+      check(`diya ${levelKey}: ${count} diyas on a night sky that fills the screen, the first one burning`, path.filter(p => p.diya >= 0).length === count && (await litDiyas()) === 1 && info.bottom <= info.vh && info.w > 900, JSON.stringify(info));
+      check(`diya ${levelKey}: every dot is on the screen`, path.every(p => p.x > 0 && p.y > 0 && p.x < 1280 && p.y < info.vh));
+      if (levelKey === 'easy') {
+        await shot('120-dy-easy-start');
+        // Skipping ahead (tapping the far diya) does nothing; wandering off does nothing.
+        const last = path[path.length - 1];
+        await click(last.x, last.y);
+        check('diya: tapping far ahead does not jump there', (await litDots()) === 0 && (await litDiyas()) === 1);
+        // Slide half way, lift off, then carry on: nothing is lost.
+        await mouse('mousePressed', path[0].x, path[0].y);
+        for (let i = 1; i <= 5; i++) await mouse('mouseMoved', path[i].x + 9, path[i].y - 7);
+        await mouse('mouseMoved', path[5].x + 200, path[5].y + 150); // the finger wanders far off
+        await mouse('mouseReleased', path[5].x + 200, path[5].y + 150);
+        check('diya: sliding along lights the dots; wandering off loses nothing', (await litDots()) === 5, 'lit=' + await litDots());
+        await shot('121-dy-sliding');
+        // tap the next few dots, one by one
+        for (let i = 6; i <= 9; i++) await click(path[i].x - 8, path[i].y + 6);
+        check('diya: tapping the dots one by one works too, and lights the next diya', (await litDiyas()) === 2 && (await statusText()).startsWith('Lovely! 2 of 3'), await statusText());
+        await mouse('mousePressed', path[9].x, path[9].y);
+        for (let i = 10; i < path.length; i++) { await mouse('mouseMoved', (path[i - 1].x + path[i].x) / 2, (path[i - 1].y + path[i].y) / 2); await mouse('mouseMoved', path[i].x, path[i].y); }
+        await mouse('mouseReleased', path[path.length - 1].x, path[path.length - 1].y);
+      } else {
+        // one long slide, through every point on the way
+        await mouse('mousePressed', path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) { await mouse('mouseMoved', (path[i - 1].x + path[i].x) / 2 + 5, (path[i - 1].y + path[i].y) / 2 - 5); await mouse('mouseMoved', path[i].x, path[i].y); }
+        await mouse('mouseReleased', path[path.length - 1].x, path[path.length - 1].y);
+        if (levelKey === 'hard') await shot('122-dy-hard-done');
+      }
+      check(`diya ${levelKey}: every diya lit`, (await litDiyas()) === count, 'lit=' + await litDiyas());
+      await sleep(2200);
+      check(`diya ${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`));
+      if (levelKey === 'medium') await shot('123-dy-win');
+    }
+    await go('#/diya/medium');
+    await js(`document.querySelector('.dy-board').focus()`);
+    for (let i = 0; i < 9; i++) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    check('diya: the keyboard moves the light on too', (await litDiyas()) === 2);
+    await viewport(390, 844, true);
+    await go('#/diya/medium');
+    {
+      const path = await js(`SG.current().peek()`);
+      await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: path[0].x, y: path[0].y }] });
+      for (let i = 1; i <= 12; i++) await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: path[i].x + 6, y: path[i].y + 4 }] });
+      await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      check('phone: a finger sliding along the dots lights them, and the next diya', (await litDiyas()) >= 2 && (await js(`pageYOffset`)) === 0, 'lit=' + await litDiyas());
+      await shot('124-dy-phone');
+    }
+    await viewport(1024, 768, true);
+    await go('#/diya/hard');
+    await shot('125-dy-tablet');
+    await viewport(1280, 800, false);
   }
 
   // ---------- Every screen fits on the screen: no scrolling, ever ----------

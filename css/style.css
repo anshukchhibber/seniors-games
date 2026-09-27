@@ -114,6 +114,9 @@
 [data-game="pattern"]    { --accent: #7B4FB5; --accent-deep: #4C2A85; --accent-tint: #EADFF7; --accent-pressed: #321A5A; --accent-wash: #F8F3FC; }
 [data-game="sorting"]    { --accent: #3A8A3A; --accent-deep: #1F6B3F; --accent-tint: #D7EFDD; --accent-pressed: #124528; --accent-wash: #F3FAF2; }
 [data-game="colouring"]  { --accent: #C9457E; --accent-deep: #8E2A5C; --accent-tint: #FBE1EC; --accent-pressed: #5E1A3C; --accent-wash: #FFF5F9; }
+[data-game="harmonium"]  { --accent: #A0652A; --accent-deep: #5E3814; --accent-tint: #F5E6D3; --accent-pressed: #3D230B; --accent-wash: #FCF6EF; }
+[data-game="rangoli"]    { --accent: #1E86C8; --accent-deep: #0B4F7C; --accent-tint: #D8EDFB; --accent-pressed: #063352; --accent-wash: #F2F9FE; }
+[data-game="diya"]       { --accent: #4F57C4; --accent-deep: #2B3190; --accent-tint: #E2E4FA; --accent-pressed: #1B1F63; --accent-wash: #F4F5FD; }
 /* The raised edges are re-declared too: a custom property that uses another is worked out where
    it is declared, so these would otherwise stay navy. */
 [data-game], .bar-home {
@@ -1165,6 +1168,132 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   .col-current { width: 44px; height: 44px; }
 }
 
+/* ---------- Harmonium ---------- */
+
+.hm-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); justify-items: center; }
+.hm-status { text-align: center; width: 100%; }
+/* The phrase to play, in sargam: the next note ringed, the ones played ticked green */
+.hm-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 100%; }
+.hm-chip {
+  min-width: 46px;
+  padding: 0 10px;
+  border: var(--border-thin) solid var(--color-line-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: inset 0 -5px 0 var(--key);
+  font-size: var(--text-label);
+  font-weight: 800;
+  line-height: 1.7;
+  text-align: center;
+}
+.hm-chip.next { border: var(--border-thick) solid var(--accent-deep); }
+.hm-chip.done { border-color: var(--color-done); background: var(--color-done-tint); color: var(--color-done); box-shadow: none; }
+.hm-board-wrap { width: 100%; }
+/* Room above the keys for the hand that points at the next one */
+.hm-board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 8), var(--key-w, 90px));
+  grid-auto-rows: var(--key-h, 220px);
+  gap: 10px;
+  justify-content: center;
+  padding: 64px 0 6px;
+  touch-action: none;
+}
+.hm-free .hm-board { padding-top: 0; }
+/* A key: white, with its colour across the top and its name big at the bottom */
+.hm-key {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 0 0 12px;
+  background: var(--color-surface);
+  border: var(--border) solid var(--color-ink);
+  border-radius: 14px;
+  box-shadow: 0 6px 0 var(--color-ink);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+  transition: transform var(--motion-press), box-shadow var(--motion-press), background-color var(--motion-press);
+}
+.hm-cap { position: absolute; top: 0; left: 0; right: 0; height: 26%; background: var(--key); border-bottom: var(--border) solid var(--color-ink); border-radius: 11px 11px 0 0; }
+.hm-name { font-size: clamp(22px, calc(var(--key-w, 90px) * 0.4), 44px); font-weight: 800; line-height: 1.15; }
+.hm-other { font-size: var(--text-body); font-weight: 700; color: var(--color-ink-soft); line-height: 1.2; }
+/* High Sa has a dot above it, as sargam is written */
+.hm-high .hm-name { position: relative; }
+:lang(en) .hm-high .hm-name::before { content: ""; position: absolute; top: -6px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: currentColor; }
+/* Sounding: pressed down, and glowing warm */
+.hm-key.is-pressed, .hm-key.sounding { transform: translateY(5px); box-shadow: 0 1px 0 var(--color-ink); background: #FFF4CC; }
+.hm-key.hm-next { outline: 5px solid var(--accent-deep); outline-offset: 4px; }
+.hm-point { display: none; position: absolute; left: 50%; top: -66px; width: 44px; height: 60px; margin-left: -22px; transform: rotate(180deg); pointer-events: none; overflow: visible; z-index: 2; }
+.hm-key.hm-next .hm-point { display: block; animation: so-point 0.8s ease-in-out 3; }
+.hm-foot { display: grid; justify-items: center; }
+
+/* ---------- Rangoli Mirror ---------- */
+
+.rg-board-box { grid-area: picture; width: 320px; height: 320px; }
+.rg-board { display: block; width: 100%; height: 100%; border-radius: var(--radius-md); box-shadow: 0 5px 0 var(--accent-deep); touch-action: none; cursor: pointer; }
+.rg-board:focus { outline: none; }
+.rg-board:focus-visible { outline: var(--border-thick) solid var(--color-focus); outline-offset: 3px; }
+.rg-new { animation: rg-in 0.35s ease-out; }
+@keyframes rg-in {
+  from { opacity: 0; }
+}
+/* The shape on the brush, in its colour, beside the words that name it */
+.rg-current { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border: var(--border) solid var(--color-ink); border-radius: 14px; background: #5B2A22; }
+.rg-current svg { width: 38px; height: 38px; }
+.rg-shapes { display: grid; grid-template-columns: repeat(4, 64px); gap: 10px; }
+/* A shape button: the shape in the chosen colour, on the floor's colour. Chosen: ringed and ticked. */
+.rg-shape {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px;
+  padding: 0;
+  border: var(--border) solid var(--color-ink-soft);
+  border-radius: 16px;
+  background: #5B2A22;
+  box-shadow: 0 4px 0 var(--color-ink);
+  cursor: pointer;
+  transition: transform var(--motion-press), box-shadow var(--motion-press);
+}
+.rg-shape-pic { width: 44px; height: 44px; }
+.rg-shape .icon { position: absolute; top: -9px; right: -9px; visibility: hidden; width: 28px; height: 28px; padding: 4px; border-radius: 50%; background: #FFFFFF; color: var(--color-ink); box-shadow: 0 0 0 2px var(--color-ink); }
+.rg-shape[aria-pressed="true"] { outline: var(--border-thick) solid var(--color-ink); outline-offset: 3px; }
+.rg-shape[aria-pressed="true"] .icon { visibility: visible; }
+.rg-shape.is-pressed { transform: translateY(3px); box-shadow: 0 1px 0 var(--color-ink); }
+.col-palette.rg-palette { grid-template-columns: repeat(4, 64px); gap: 10px; }
+.rg-palette .col-swatch { width: 64px; height: 64px; }
+.level-art-rg { border-radius: 10px; }
+@media (min-width: 640px) and (orientation: landscape) {
+  .col-layout.rg-layout { grid-template-columns: auto auto; }
+}
+
+/* ---------- Diya Trail ---------- */
+
+.dy-layout { display: grid; gap: var(--space-3); }
+.dy-status { text-align: center; }
+.dy-board-wrap { width: 100%; min-width: 0; }
+.dy-board { display: block; border-radius: 22px; box-shadow: 0 6px 0 var(--accent-deep); touch-action: none; }
+.dy-board:focus { outline: none; }
+.dy-board:focus-visible { outline: var(--border-thick) solid var(--color-focus); outline-offset: 3px; }
+.dy-sky, .dy-moon-cut { fill: #1E2461; }
+/* The path: faint dots still to light; bright ones behind the finger; a white ring on the next */
+.dy-dot { fill: #FFD54F; fill-opacity: 0.3; stroke: #FFD54F; stroke-opacity: 0.55; stroke-width: 1.5; transition: fill-opacity var(--motion-state); }
+.dy-dot.lit { fill-opacity: 1; stroke: #FFF3C4; stroke-opacity: 1; }
+.dy-dot.next { fill-opacity: 0.75; stroke: #FFFFFF; stroke-opacity: 1; stroke-width: 4; }
+.dy-trail { stroke: #FFD54F; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-opacity: 0.85; }
+.dy-glow { opacity: 0; }
+.dy-diya.lit .dy-glow { opacity: 1; }
+.dy-diya.next .dy-glow { opacity: 1; fill: none; stroke: #FFFFFF; stroke-width: 3; stroke-dasharray: 6 6; stroke-opacity: 0.8; }
+.dy-flame, .dy-flame-core { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; }
+.dy-flame { fill: #FF9800; stroke: #E65100; stroke-width: 2; }
+.dy-flame-core { fill: #FFF3C4; }
+.dy-diya.lit .dy-flame, .dy-diya.lit .dy-flame-core { opacity: 1; animation: dy-light 0.5s ease-out; }
+@keyframes dy-light {
+  from { opacity: 0; transform: scale(0.3); }
+}
+.dy-trophies { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.dy-trophies svg { width: 64px; height: 58px; }
+
 /* ---------- Hindi (Devanagari) ---------- */
 
 /* Vowel signs sit above and below the line, so lines need more air; and letter-spacing must be
@@ -1233,6 +1362,22 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   .col-swatch { width: 64px; height: 64px; }
   .col-tools { flex-direction: row; }
   .col-tools .btn { white-space: nowrap; }
+  .rg-side { grid-template-columns: auto auto; grid-template-areas: "shapes palette" "tools tools"; align-items: start; }
+  .rg-shapes { grid-area: shapes; grid-template-columns: repeat(2, 64px); }
+  .rg-palette { grid-area: palette; }
+  .rg-side .col-tools { grid-area: tools; }
+  .hm-board { padding-top: 52px; }
+  .hm-layout { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "status status" "strip foot" "board board"; align-items: center; }
+  .hm-status { grid-area: status; }
+  .hm-strip { grid-area: strip; }
+  .hm-foot { grid-area: foot; }
+  .hm-board-wrap { grid-area: board; }
+  .hm-strip { gap: 4px; }
+  .hm-chip { min-width: 40px; padding: 0 6px; }
+  .hm-other { display: none; }
+  .hm-key { padding-bottom: 6px; }
+  .hm-cap { height: 22%; }
+  .hm-point { top: -54px; width: 38px; height: 52px; margin-left: -19px; }
 }
 /* A laptop or tablet with little height: four colours to a row, so the tools stay in view */
 @media (orientation: landscape) and (max-height: 760px) and (min-height: 561px) {

@@ -159,7 +159,72 @@
       'col.bar': function (name) { return 'Picture: ' + name + '. Choose another picture'; },
       'col.resumeTitle': 'Your picture is kept',
       'col.resumeText': function (progress) { return progress + ' It stays as it is if you choose another picture. “Start Again” makes it all white.'; },
-      'col.progress': function (n) { return 'You have coloured ' + n + (n === 1 ? ' part.' : ' parts.'); }
+      'col.progress': function (n) { return 'You have coloured ' + n + (n === 1 ? ' part.' : ' parts.'); },
+
+      'hm.title': 'Harmonium',
+      'hm.howto': [
+        'Press a key and hold it: it plays its note for as long as you hold it.',
+        'To play a tune, press the key with the hand on it, then the next one.',
+        'Another key just plays its own note. Take as long as you like.'
+      ],
+      'hm.level.free': 'Play freely',
+      'hm.level.scale': 'Sa Re Ga Ma',
+      'hm.level.twinkle': 'Twinkle, Twinkle',
+      'hm.level.jingle': 'Jingle Bells',
+      'hm.detail.free': 'Any key, any time.',
+      'hm.detail.scale': 'Up the scale and back down.',
+      'hm.detail.twinkle': 'A tune everyone knows, in 6 short lines.',
+      'hm.detail.jingle': 'Four lines, a little longer.',
+      'hm.board': 'Harmonium keys',
+      'hm.listen': 'Listen',
+      'hm.free': 'Press any key. Each key has its own note.',
+      'hm.played': function (name) { return 'You played ' + name + '.'; },
+      'hm.start': function (tune, next) { return tune + ': press the key with the hand on it, ' + next + '. Press “Listen” to hear it first.'; },
+      'hm.next': function (next) { return 'Good. Now ' + next + '.'; },
+      'hm.other': function (played, next) { return 'That was ' + played + '. The next note is ' + next + ', with the hand on it.'; },
+      'hm.phraseDone': function (k, total) { return 'Lovely! Now line ' + k + ' of ' + total + '.'; },
+      'hm.listening': 'Listen…',
+      'hm.yourTurn': function (next) { return 'Your turn. Start with ' + next + '.'; },
+      'hm.last': function (tune) { return 'You played all of ' + tune + '!'; },
+      'hm.win': function (tune) { return 'You played ' + tune + ' all the way through.'; },
+      'hm.progress': function (tune) { return 'You are part way through ' + tune + '.'; },
+
+      'rg.title': 'Rangoli Mirror',
+      'rg.choose': 'Choose a rangoli',
+      'rg.howto': [
+        'Choose a colour and a shape.',
+        'Tap anywhere on the floor. Your mark appears all the way round, like in a mirror.',
+        'Keep adding marks. Undo takes one back. Nothing can go wrong.'
+      ],
+      'rg.detail': function (n) { return 'Each mark goes round ' + n + ' times, mirrored.'; },
+      'rg.board': 'Rangoli floor. Arrow keys move round the dots; Enter makes a mark.',
+      'rg.shapes': 'Shapes',
+      'rg.status': function (colour, shape) { return colour + ' ' + shape.toLowerCase() + '. Tap anywhere on the floor.'; },
+      'rg.empty': 'Tap the floor to make a mark first.',
+      'rg.doneText': 'Your rangoli is saved. You can come back and add to it any time.',
+      'rg.keep': 'Keep Going',
+      'rg.another': 'Choose Another',
+      'rg.action': 'Start Again',
+      'rg.bar': function (name) { return 'Rangoli: ' + name + '. Choose another'; },
+      'rg.resumeTitle': 'Your rangoli is kept',
+      'rg.resumeText': function (progress) { return progress + ' It stays as it is if you choose another. “Start Again” clears the floor.'; },
+      'rg.progress': 'You have started a rangoli here.',
+
+      'dy.title': 'Diya Trail',
+      'dy.howto': [
+        'Put your finger on the glowing dots and slide along them.',
+        'Each dot lights up. When you reach a diya, it lights too.',
+        'You can also tap the dots one by one. Take as long as you like.'
+      ],
+      'dy.level.easy': '3 diyas, gentle curves',
+      'dy.level.medium': '5 diyas',
+      'dy.level.hard': '7 diyas, twisty paths',
+      'dy.board': 'Night sky with diyas. Press Enter to light the next dot.',
+      'dy.start': 'Slide your finger along the dots, from the burning diya to the next one.',
+      'dy.lit': function (n, total) { return 'Lovely! ' + n + ' of ' + total + ' diyas lit. Carry on along the dots.'; },
+      'dy.last': 'Every diya is lit!',
+      'dy.win': function (n) { return 'You lit all ' + n + ' diyas.'; },
+      'dy.progress': function (n, total) { return 'You have lit ' + n + ' of ' + total + ' diyas.'; }
     },
 
     hi: {
@@ -314,7 +379,72 @@
       'col.bar': function (name) { return 'तस्वीर: ' + name + '। दूसरी तस्वीर चुनिए'; },
       'col.resumeTitle': 'आपकी तस्वीर सहेजी हुई है',
       'col.resumeText': function (progress) { return progress + ' दूसरी तस्वीर चुनने पर भी यह ऐसी ही रहेगी। “फिर से शुरू” दबाने पर सारे रंग मिट जाएँगे।'; },
-      'col.progress': function (n) { return 'आपने ' + n + ' हिस्सों में रंग भरा है।'; }
+      'col.progress': function (n) { return 'आपने ' + n + ' हिस्सों में रंग भरा है।'; },
+
+      'hm.title': 'हारमोनियम',
+      'hm.howto': [
+        'कोई बटन दबाकर रखिए: जब तक दबाए रखेंगे, उसका सुर बजता रहेगा।',
+        'धुन बजाने के लिए, जिस बटन पर हाथ का निशान है उसे दबाइए, फिर अगला।',
+        'कोई दूसरा बटन बस अपना सुर बजाता है। जितना चाहें, उतना समय लीजिए।'
+      ],
+      'hm.level.free': 'मन से बजाइए',
+      'hm.level.scale': 'सा रे ग म',
+      'hm.level.twinkle': 'ट्विंकल ट्विंकल',
+      'hm.level.jingle': 'जिंगल बेल्स',
+      'hm.detail.free': 'कोई भी बटन, कभी भी।',
+      'hm.detail.scale': 'सुर ऊपर, और फिर नीचे।',
+      'hm.detail.twinkle': 'सबकी जानी-पहचानी धुन, 6 छोटी पंक्तियाँ।',
+      'hm.detail.jingle': 'चार पंक्तियाँ, थोड़ी लंबी।',
+      'hm.board': 'हारमोनियम के बटन',
+      'hm.listen': 'सुनिए',
+      'hm.free': 'कोई भी बटन दबाइए। हर बटन का अपना सुर है।',
+      'hm.played': function (name) { return name + ' बजा।'; },
+      'hm.start': function (tune, next) { return tune + ': जिस बटन पर हाथ है, उसे दबाइए – ' + next + '। पहले सुनना हो तो “सुनिए” दबाइए।'; },
+      'hm.next': function (next) { return 'बहुत अच्छे। अब ' + next + '।'; },
+      'hm.other': function (played, next) { return 'यह ' + played + ' था। अगला सुर ' + next + ' है, जिस पर हाथ है।'; },
+      'hm.phraseDone': function (k, total) { return 'वाह! अब ' + total + ' में से पंक्ति ' + k + '।'; },
+      'hm.listening': 'सुनिए…',
+      'hm.yourTurn': function (next) { return 'अब आपकी बारी। ' + next + ' से शुरू कीजिए।'; },
+      'hm.last': function (tune) { return 'आपने “' + tune + '” की पूरी धुन बजा ली!'; },
+      'hm.win': function (tune) { return 'आपने “' + tune + '” की धुन शुरू से आख़िर तक बजा ली।'; },
+      'hm.progress': function (tune) { return '“' + tune + '” की धुन अभी पूरी नहीं हुई है।'; },
+
+      'rg.title': 'रंगोली',
+      'rg.choose': 'रंगोली चुनिए',
+      'rg.howto': [
+        'एक रंग और एक आकार चुनिए।',
+        'ज़मीन पर कहीं भी दबाइए। आपका निशान आईने की तरह चारों ओर बन जाएगा।',
+        'निशान बनाते जाइए। “वापस लीजिए” से आख़िरी निशान हट जाता है। कुछ भी गलत नहीं होता।'
+      ],
+      'rg.detail': function (n) { return 'हर निशान ' + n + ' बार घूमकर बनता है।'; },
+      'rg.board': 'रंगोली की ज़मीन। तीर वाले बटनों से बिंदुओं पर चलिए, एंटर से निशान बनाइए।',
+      'rg.shapes': 'आकार',
+      'rg.status': function (colour, shape) { return colour + ' रंग, ' + shape + '। ज़मीन पर कहीं भी दबाइए।'; },
+      'rg.empty': 'पहले ज़मीन पर दबाकर कोई निशान बनाइए।',
+      'rg.doneText': 'आपकी रंगोली सहेज ली गई है। इसे कभी भी खोलकर और सजाया जा सकता है।',
+      'rg.keep': 'सजाते रहिए',
+      'rg.another': 'दूसरी चुनिए',
+      'rg.action': 'फिर से शुरू',
+      'rg.bar': function (name) { return 'रंगोली: ' + name + '। दूसरी चुनिए'; },
+      'rg.resumeTitle': 'आपकी रंगोली सहेजी हुई है',
+      'rg.resumeText': function (progress) { return progress + ' दूसरी चुनने पर भी यह ऐसी ही रहेगी। “फिर से शुरू” दबाने पर ज़मीन साफ़ हो जाएगी।'; },
+      'rg.progress': 'यहाँ आपकी रंगोली बन रही है।',
+
+      'dy.title': 'दीयों की राह',
+      'dy.howto': [
+        'चमकते बिंदुओं पर उँगली रखिए और उन पर फिराते जाइए।',
+        'हर बिंदु जल उठता है। दीये तक पहुँचते ही वह भी जल जाता है।',
+        'बिंदुओं को एक-एक करके दबा भी सकते हैं। जितना चाहें, उतना समय लीजिए।'
+      ],
+      'dy.level.easy': '3 दीये, हल्के मोड़',
+      'dy.level.medium': '5 दीये',
+      'dy.level.hard': '7 दीये, घुमावदार राह',
+      'dy.board': 'दीयों वाला रात का आसमान। अगला बिंदु जलाने के लिए एंटर दबाइए।',
+      'dy.start': 'जलते दीये से अगले दीये तक, बिंदुओं पर उँगली फिराइए।',
+      'dy.lit': function (n, total) { return 'बहुत सुंदर! ' + total + ' में से ' + n + ' दीये जल गए। बिंदुओं पर आगे बढ़िए।'; },
+      'dy.last': 'सारे दीये जल गए!',
+      'dy.win': function (n) { return 'आपने सभी ' + n + ' दीये जला दिए।'; },
+      'dy.progress': function (n, total) { return 'आपने ' + total + ' में से ' + n + ' दीये जला दिए हैं।'; }
     }
   };
 

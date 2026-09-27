@@ -34,7 +34,7 @@
     ] },
     hot: { en: 'Hot', hi: 'गरम', sign: '🔥', scene: 'hot', items: [
       ['☕', 'Cup of tea', 'चाय'], ['🔥', 'Fire', 'आग'], ['☀️', 'Sun', 'सूरज'], ['🍲', 'Hot soup', 'गरम सूप'],
-      ['🕯️', 'Candle', 'मोमबत्ती']
+      ['🕯️', 'Candle', 'मोमबत्ती'], ['🌋', 'Volcano', 'ज्वालामुखी'], ['🥘', 'Hot curry', 'गरम सब्ज़ी']
     ] },
     cold: { en: 'Cold', hi: 'ठंडा', sign: '❄️', scene: 'cold', items: [
       ['🧊', 'Ice', 'बर्फ़'], ['🍦', 'Ice cream', 'आइसक्रीम'], ['⛄', 'Snowman', 'बर्फ़ का पुतला'],
@@ -131,15 +131,18 @@
       const sets = SETS[level.baskets].filter(function (s) { return s.join() !== lastSet; });
       groups = sets[SG.rand(sets.length)];
       lastSet = groups.join();
-      const per = Math.ceil(level.things / groups.length);
-      let all = [];
-      groups.forEach(function (key) {
-        const pile = GROUPS[key].items.filter(function (item) { return canShow(item) && item[0] !== GROUPS[key].sign; });
-        all = all.concat(SG.shuffle(pile).slice(0, per).map(function (item) {
-          return { item: item, group: key };
-        }));
+      // Deal from each basket's pile in turn, so the baskets get about the same number each (and if
+      // one pile runs short on this tablet, the others make up the number).
+      const piles = groups.map(function (key) {
+        return SG.shuffle(GROUPS[key].items.filter(function (item) { return canShow(item) && item[0] !== GROUPS[key].sign; }))
+          .map(function (item) { return { item: item, group: key }; });
       });
-      queue = SG.shuffle(all).slice(0, level.things);
+      const all = [];
+      for (let i = 0; all.length < level.things && piles.some(function (p) { return p.length; }); i++) {
+        const pile = piles[i % piles.length];
+        if (pile.length) all.push(pile.shift());
+      }
+      queue = SG.shuffle(all);
     }
 
     function render() {

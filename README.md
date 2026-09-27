@@ -11,6 +11,9 @@ accounts, and no internet needed once it has been opened.
 | **Repeat the Pattern** | purple | Pads light up in turn (each with its own colour, shape and note); tap them back. Each pattern is one longer. A slip just means "watch again". |
 | **Sort into Baskets** | green | Four pictures on the table at a time. Tap one and then its basket, or slide it in (fruit / vegetables, hot / cold, land / water...). Reaching, dragging and simple grouping. |
 | **Colouring Book** | rose | Choose a colour, tap part of a picture and the colour spreads out from your finger: flower, house, butterfly, kite, diya, lotus, rangoli. Creative and calming; nothing can go wrong. Every picture is kept, so the picture page is also the gallery. |
+| **Harmonium** | wood brown | Eight big keys, सा to सां, each with its own colour and a warm reed sound that lasts as long as the key is held. Play freely, or follow the glowing key (and the pointing hand) through Sa Re Ga Ma, Twinkle Twinkle or Jingle Bells; "Listen" plays the line first. Finger-by-finger movement, music and joy. |
+| **Rangoli Mirror** | blue | Choose a colour and a shape, tap the floor, and the mark is repeated all the way round, mirrored (Square, Flower or Star), so every design comes out balanced. Each design is kept. Creative, calming, and reaching all over the screen. |
+| **Diya Trail** | night indigo | Slide a finger along a dotted path of light from one diya to the next (or tap the dots one by one); each diya catches fire as the light reaches it. A slow, controlled finger movement, like handwriting practice after a stroke. The finger may wander; nothing is ever lost. |
 
 ## How it flows
 
@@ -134,6 +137,9 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 | Sort into Baskets groups and pictures | `GROUPS` (with each basket's `sign`, `scene`, `tint`) and `SETS` in `js/sorting.js`; the scenes are `.so-scene-*` in `css/style.css` |
 | Colouring pictures and palette    | `PICTURES` and `COLOURS` in `js/colouring.js`     |
 | Pattern pads (shape, colour, note), lengths | `PADS` and `LEVELS` in `js/pattern.js`  |
+| Harmonium keys and tunes          | `KEYS` and `TUNES` in `js/harmonium.js` (one line of sargam per phrase) |
+| Rangoli colours, shapes, symmetries | `COLOURS`, `SHAPES` and `LEVELS` in `js/rangoli.js` |
+| Diya Trail lengths and curves     | `LEVELS` in `js/diya.js`                          |
 | Colours, text sizes, spacing (design tokens) | `:root` at the top of `css/style.css`   |
 | The app's name                    | `APP_NAME` in `js/app.js` and `<title>` in `index.html` |
 
@@ -164,13 +170,11 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 ## Ideas for the next games
 
 From a look at the research and at senior game apps (September 2026):
-- **Harmonium / Sargam**: big सा रे ग म keys. Free play, or follow the glowing key through a simple
-  bhajan. Playing an instrument is the best-evidenced hand exercise of all of these.
-- **Rangoli Mirror**: every tap on a dot grid is mirrored 4 or 8 ways, so it always looks beautiful.
+- A bhajan or two for the **Harmonium** (the notes need checking by someone who plays).
 - **Bazaar Shopping**: remember a short list, then pick it from a stall. She can peek at the list any time.
 - **Complete the Muhavara**: pick the end of a proverb (needs a Hindi speaker's review).
 - **Jigsaw**, with a tap-to-swap alternative. **Recipe Steps**: put chai-making in order.
-- **Spot the Difference**, **Tambola** (good with family), **Diya Lighting** (trace a path),
+- **Spot the Difference**, **Tambola** (good with family),
   **Calm Garden**.
 
 ## Test
