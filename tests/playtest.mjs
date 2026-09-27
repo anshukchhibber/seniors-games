@@ -771,7 +771,8 @@ try {
         if (levelKey === 'hard') await shot('52-so-wrong');
         await click(st.baskets[wrong].x, st.baskets[wrong].y);
         await sleep(100);
-        check(`sorting ${levelKey}: a second miss shows the right basket`, (await statusText()).includes('is circled') && (await js(`document.querySelectorAll('.so-basket.so-hint').length`)) === 1, await statusText());
+        check(`sorting ${levelKey}: a second miss shows the right basket, with a pointing hand`, (await statusText()).includes('is circled') && (await js(`document.querySelectorAll('.so-basket.so-hint').length === 1 && getComputedStyle(document.querySelector('.so-hint .so-point')).display === 'block'`)), await statusText());
+        if (levelKey === 'hard') { await sleep(2600); await shot('52b-so-hint'); }
         // Let go far from any basket: it floats back and nothing else happens.
         await drag(st.card.x, st.card.y, st.card.x + 300, st.card.y - 150);
         await sleep(450);
@@ -809,6 +810,15 @@ try {
     await viewport(1024, 768, true);
     await go('#/sorting/medium');
     await shot('56-so-medium-tablet');
+    // Each basket can be told apart without reading: its own scene and a picture label
+    for (const [want, name] of [['Live on land', '57-so-land-water-sky'], ['Hot', '58-so-hot-cold']]) {
+      for (let i = 0; i < 12; i++) {
+        await go('#/sorting/' + (want === 'Hot' ? 'easy' : 'hard'));
+        if (await js(`[...document.querySelectorAll('.so-basket-name')].some(n => n.textContent === '${want}')`)) break;
+      }
+      await shot(name);
+    }
+    check('sorting: every basket has its own look and a picture label', await js(`(() => { const b = [...document.querySelectorAll('.so-basket')]; return b.every(x => x.querySelector('.so-sign').textContent.trim()) && new Set(b.map(x => getComputedStyle(x).backgroundImage + getComputedStyle(x).backgroundColor)).size === b.length; })()`));
     await viewport(1280, 800, false);
   }
 
@@ -1004,6 +1014,20 @@ try {
     await go('#/colouring/kite');
     check('offline: a game opens with no internet', await js(`!!document.querySelector('.col-picture')`));
     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  }
+
+  // ---------- The first-time page of every game: a hand acts out the move ----------
+  if (want('intro')) {
+    await viewport(1024, 768, true);
+    for (const key of await js(`SG.games.map(g => g.key)`)) {
+      await js(`localStorage.removeItem('sg.seen.${key}')`);
+      await go('#/' + key);
+      await sleep(1100); // the moment the finger presses
+      await shot('03-intro-' + key);
+      check(`${key}: the first-time page shows a hand acting out the move, and one Start button`, await js(`!!document.querySelector('.intro .demo-run .demo-hand') && document.querySelectorAll('.intro button').length === 1`));
+    }
+    await seenAll();
+    await viewport(1280, 800, false);
   }
 
   // ---------- Home, with the whole collection ----------

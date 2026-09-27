@@ -56,7 +56,7 @@
       board = el('div', { class: 'nh-board', role: 'group', 'aria-label': t('nh.board') });
       wrap = el('div', { class: 'nh-board-wrap' }, [board]);
 
-      const hintBtn = el('button', { class: 'btn btn-secondary nh-hint', type: 'button', text: t('nh.hint') });
+      const hintBtn = SG.iconButton('btn btn-secondary nh-hint', 'bulb', t('nh.hint'));
       SG.onTap(hintBtn, hint);
       foot = el('section', { class: 'nh-foot' }, [hintBtn]);
 
@@ -190,7 +190,8 @@
   }
 
   // Round number tokens: 1 and 2 already found, 3 circled as the one to find.
-  function illustration() {
+  // `opts.demo`: a hand taps the 3.
+  function illustration(opts) {
     const svg = SG.svg;
     const parts = [];
     function token(cx, cy, n, state) {
@@ -213,6 +214,7 @@
     token(20, 64, 6);
     token(100, 66, 5);
     token(64, 36, 3, 'find');
+    if (opts && opts.demo) parts.push(SG.demoHand(66, 40, 'tap'));
     return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 

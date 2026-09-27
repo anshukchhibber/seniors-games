@@ -234,9 +234,9 @@
       });
       palette = el('div', { class: 'col-palette', role: 'group', 'aria-label': t('col.palette') }, swatches);
 
-      const undoBtn = el('button', { class: 'btn btn-secondary col-undo', type: 'button', text: t('col.undo') });
+      const undoBtn = SG.iconButton('btn btn-secondary col-undo', 'undo', t('col.undo'));
       SG.onTap(undoBtn, undo);
-      const finishBtn = el('button', { class: 'btn col-finish', type: 'button', text: t('col.finish') });
+      const finishBtn = SG.iconButton('btn col-finish', 'check', t('col.finish'));
       SG.onTap(finishBtn, finish);
       tools = el('div', { class: 'col-tools' }, [undoBtn, finishBtn]);
 
@@ -391,7 +391,9 @@
         title: t('col.doneTitle'),
         art: draw(picture, fills, 'col-finished', false),
         again: t('col.keep'),
-        back: t('col.another')
+        againIcon: 'play',
+        back: t('col.another'),
+        backIcon: 'picture'
       });
       stage.textContent = '';
       pictureBox = null;
@@ -436,9 +438,12 @@
   }
 
   // A half-coloured flower in a frame, and a brush with paint on it.
-  function illustration() {
+  // `opts.demo`: a hand taps the white petal and it fills with red.
+  function illustration(opts) {
     const fills = { petal0: '#E53935', petal1: '#FB8C00', petal2: '#E53935', petal3: '#FB8C00', middle: '#FDD835', leafL: '#9CCC65', stem: '#2E7D32' };
     const flower = draw(PICTURES.flower, fills, '', false);
+    const demo = opts && opts.demo;
+    if (demo) flower.querySelector('[data-part="petal4"]').setAttribute('class', 'demo-fill');
     flower.removeAttribute('class');
     flower.setAttribute('x', 10);
     flower.setAttribute('y', 10);
@@ -453,7 +458,7 @@
         svg('rect', { x: 94.5, y: 46, width: 11, height: 10, rx: 2, fill: '#CFD8DC', stroke: INK, 'stroke-width': 2 }),
         svg('path', { d: 'M94.5 56H105.5L104 68C102 74 98 74 96 68Z', class: 'fill-accent', stroke: INK, 'stroke-width': 2, 'stroke-linejoin': 'round' })
       ])
-    ]);
+    ].concat(demo ? [SG.demoHand(35, 27, 'tap')] : []));
   }
 
   SG.registerGame({

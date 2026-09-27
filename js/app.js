@@ -82,10 +82,22 @@
     ]);
   }
 
+  // The game's picture with a drawn hand acting out the move. It plays twice when the page opens,
+  // and again whenever the picture is tapped.
+  function demo(game, className) {
+    const box = el('div', { class: className + ' demo-run', 'aria-hidden': 'true' }, [game.illustration({ demo: true })]);
+    SG.onTap(box, function () {
+      box.classList.remove('demo-run');
+      box.getBoundingClientRect(); // start the animation again from the beginning
+      box.classList.add('demo-run');
+    });
+    return box;
+  }
+
   function howTo(game) {
     return el('section', { class: 'howto' }, [
       el('h2', { class: 'howto-title', text: t('howto') }),
-      el('div', { class: 'howto-art', 'aria-hidden': 'true' }, [game.illustration()])
+      demo(game, 'howto-art')
     ].concat(t(game.text + '.howto').map(function (line) { return el('p', { text: line }); })));
   }
 
@@ -143,7 +155,7 @@
   function renderIntro(key, game) {
     const title = t(game.text + '.title');
     document.title = title + ' – ' + t('appName');
-    const start = el('button', { class: 'btn btn-lg intro-start', type: 'button', text: t('start') });
+    const start = SG.iconButton('btn btn-lg intro-start', 'play', t('start'));
     SG.onTap(start, function () {
       seenNow[key] = true;
       SG.store.set('seen.' + key, '1');
@@ -151,7 +163,7 @@
     });
     view.appendChild(bar(title));
     view.appendChild(el('div', { class: 'intro' }, [
-      el('div', { class: 'intro-art', 'aria-hidden': 'true' }, [game.illustration()]),
+      demo(game, 'intro-art'),
       el('h2', { class: 'intro-title', text: t('howto') }),
       el('div', { class: 'intro-lines' }, t(game.text + '.howto').map(function (line) { return el('p', { text: line }); })),
       start
@@ -160,8 +172,8 @@
 
   // "Carry on": shown at the top of the level page when a game is under way.
   function resumeBox(game, live, progress) {
-    const keep = el('button', { class: 'btn btn-lg', type: 'button', text: tg(game, 'keep', 'keepPlaying') });
-    const fresh = el('button', { class: 'btn btn-secondary', type: 'button', text: tg(game, 'action', 'newGame') });
+    const keep = SG.iconButton('btn btn-lg', 'play', tg(game, 'keep', 'keepPlaying'));
+    const fresh = SG.iconButton('btn btn-secondary', 'fresh', tg(game, 'action', 'newGame'));
     function backToGame() {
       if (live.backIsGame) history.back();
       else location.hash = live.hash;

@@ -240,7 +240,8 @@
   }
 
   // Three cards: one face down, and a matching pair turned up with a tick.
-  function illustration() {
+  // `opts.demo`: a hand taps the card that is face down.
+  function illustration(opts) {
     const svg = SG.svg;
     function flower(cx, cy) {
       const parts = [];
@@ -270,7 +271,7 @@
       card(79, 26, 9, true),
       svg('circle', { cx: 110, cy: 25, r: 9, fill: '#1F6B3F', stroke: '#FFFFFF', 'stroke-width': 2 }),
       svg('path', { d: 'M105.5 25.5l3 3 6-6.5', fill: 'none', stroke: '#FFFFFF', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
-    ]);
+    ].concat(opts && opts.demo ? [SG.demoHand(24, 50, 'tap')] : []));
   }
 
   SG.registerGame({

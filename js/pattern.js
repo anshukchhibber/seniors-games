@@ -83,7 +83,7 @@
       });
       board = el('div', { class: 'pt-board', role: 'group', 'aria-label': t('pt.board') }, padEls);
 
-      watchBtn = el('button', { class: 'btn btn-lg pt-watch', type: 'button', text: t('pt.watch') });
+      watchBtn = SG.iconButton('btn btn-lg pt-watch', 'eye', t('pt.watch'));
       SG.onTap(watchBtn, watch);
 
       layoutEl = el('div', { class: 'pt-layout' }, [
@@ -123,7 +123,7 @@
     }
 
     function setWatch(text, show) {
-      watchBtn.textContent = text;
+      watchBtn.querySelector('.btn-text').textContent = text;
       watchBtn.style.visibility = show ? '' : 'hidden'; // keeps its space, so nothing moves
     }
 
@@ -245,7 +245,8 @@
   }
 
   // Four pads, one of them lit, with a little burst of light beside it.
-  function illustration() {
+  // `opts.demo`: a hand taps the lit pad.
+  function illustration(opts) {
     const INK = '#1F2A44';
     const parts = [];
     PADS.slice(0, 4).forEach(function (pad, i) {
@@ -256,6 +257,7 @@
       parts.push(svg('svg', { x: x + 8, y: y + 8, width: 22, height: 22, viewBox: '0 0 24 24', fill: lit ? pad.color : (pad.ink ? INK : '#FFFFFF') }, [SHAPES[pad.shape]()]));
     });
     parts.push(svg('path', { d: 'M13 52L6 47M11 65H3M13 78L6 83', stroke: '#F5B301', 'stroke-width': 3.5, 'stroke-linecap': 'round' }));
+    if (opts && opts.demo) parts.push(SG.demoHand(40, 68, 'tap'));
     return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 

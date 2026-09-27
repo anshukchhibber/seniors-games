@@ -13,50 +13,54 @@
 
   // Each thing: [picture, English name, Hindi name, newer?]. `newer` pictures are left out on
   // tablets that cannot draw them.
+  // So that a basket can be understood without reading its name, each group also has
+  //   sign  - one of its own pictures, shown as a label on the basket (and never dealt to be sorted)
+  //   scene - what is drawn behind the basket: grass, water, sky, sun, snow... (see style.css);
+  //           'plain' is just the group's own colour, `tint`.
   const GROUPS = {
-    fruit: { en: 'Fruit', hi: 'फल', items: [
+    fruit: { en: 'Fruit', hi: 'फल', sign: '🍎', scene: 'plain', tint: '#FFE3C2', items: [
       ['🍎', 'Apple', 'सेब'], ['🍌', 'Banana', 'केला'], ['🍇', 'Grapes', 'अंगूर'], ['🍊', 'Orange', 'संतरा'],
       ['🍉', 'Watermelon', 'तरबूज़'], ['🥭', 'Mango', 'आम'], ['🍍', 'Pineapple', 'अनानास'], ['🍐', 'Pear', 'नाशपाती'],
       ['🍓', 'Strawberry', 'स्ट्रॉबेरी'], ['🍒', 'Cherries', 'चेरी']
     ] },
-    veg: { en: 'Vegetables', hi: 'सब्ज़ियाँ', items: [
+    veg: { en: 'Vegetables', hi: 'सब्ज़ियाँ', sign: '🥕', scene: 'plain', tint: '#DDF0CC', items: [
       ['🥕', 'Carrot', 'गाजर'], ['🥔', 'Potato', 'आलू'], ['🍆', 'Aubergine', 'बैंगन'], ['🌽', 'Corn', 'भुट्टा'],
       ['🥒', 'Cucumber', 'खीरा'], ['🥦', 'Broccoli', 'ब्रोकली'], ['🌶️', 'Chilli', 'मिर्च'],
       ['🧅', 'Onion', 'प्याज़', true], ['🧄', 'Garlic', 'लहसुन', true]
     ] },
-    sweet: { en: 'Sweet things', hi: 'मीठी चीज़ें', items: [
+    sweet: { en: 'Sweet things', hi: 'मीठी चीज़ें', sign: '🍰', scene: 'plain', tint: '#FCDDEA', items: [
       ['🍰', 'Cake', 'केक'], ['🍬', 'Sweet', 'टॉफ़ी'], ['🍫', 'Chocolate', 'चॉकलेट'], ['🍯', 'Honey', 'शहद'],
       ['🍩', 'Doughnut', 'डोनट'], ['🍪', 'Biscuit', 'बिस्कुट'], ['🍭', 'Lollipop', 'लॉलीपॉप']
     ] },
-    hot: { en: 'Hot', hi: 'गरम', items: [
+    hot: { en: 'Hot', hi: 'गरम', sign: '🔥', scene: 'hot', items: [
       ['☕', 'Cup of tea', 'चाय'], ['🔥', 'Fire', 'आग'], ['☀️', 'Sun', 'सूरज'], ['🍲', 'Hot soup', 'गरम सूप'],
       ['🕯️', 'Candle', 'मोमबत्ती']
     ] },
-    cold: { en: 'Cold', hi: 'ठंडा', items: [
+    cold: { en: 'Cold', hi: 'ठंडा', sign: '❄️', scene: 'cold', items: [
       ['🧊', 'Ice', 'बर्फ़'], ['🍦', 'Ice cream', 'आइसक्रीम'], ['⛄', 'Snowman', 'बर्फ़ का पुतला'],
       ['🍧', 'Ice gola', 'बर्फ़ का गोला'], ['🏔️', 'Snowy mountain', 'बर्फ़ीला पहाड़'], ['❄️', 'Snowflake', 'बर्फ़ का फाहा']
     ] },
-    land: { en: 'Live on land', hi: 'ज़मीन पर रहते हैं', items: [
+    land: { en: 'Live on land', hi: 'ज़मीन पर रहते हैं', sign: '🐄', scene: 'land', items: [
       ['🐘', 'Elephant', 'हाथी'], ['🐄', 'Cow', 'गाय'], ['🐒', 'Monkey', 'बंदर'], ['🐅', 'Tiger', 'बाघ'],
       ['🐪', 'Camel', 'ऊँट'], ['🐕', 'Dog', 'कुत्ता'], ['🐎', 'Horse', 'घोड़ा'], ['🐐', 'Goat', 'बकरी']
     ] },
-    water: { en: 'Live in water', hi: 'पानी में रहते हैं', items: [
+    water: { en: 'Live in water', hi: 'पानी में रहते हैं', sign: '🐟', scene: 'water', items: [
       ['🐟', 'Fish', 'मछली'], ['🐬', 'Dolphin', 'डॉल्फ़िन'], ['🐙', 'Octopus', 'ऑक्टोपस'], ['🦀', 'Crab', 'केकड़ा'],
       ['🐳', 'Whale', 'व्हेल'], ['🦈', 'Shark', 'शार्क']
     ] },
-    sky: { en: 'Fly in the sky', hi: 'आसमान में उड़ते हैं', items: [
+    sky: { en: 'Fly in the sky', hi: 'आसमान में उड़ते हैं', sign: '🐦', scene: 'sky', items: [
       ['🐦', 'Bird', 'चिड़िया'], ['🦋', 'Butterfly', 'तितली'], ['🦅', 'Eagle', 'चील'], ['🦜', 'Parrot', 'तोता'],
       ['🐝', 'Bee', 'मधुमक्खी'], ['🦉', 'Owl', 'उल्लू']
     ] },
-    kitchen: { en: 'Kitchen', hi: 'रसोई', items: [
+    kitchen: { en: 'Kitchen', hi: 'रसोई', sign: '🍳', scene: 'plain', tint: '#F1E2CF', items: [
       ['🍳', 'Frying pan', 'फ़्राइंग पैन'], ['🥄', 'Spoon', 'चम्मच'], ['🍽️', 'Plate', 'थाली'], ['🧂', 'Salt', 'नमक'],
       ['🥣', 'Bowl', 'कटोरी'], ['🍴', 'Fork and knife', 'काँटा-छुरी'], ['☕', 'Cup', 'कप']
     ] },
-    garden: { en: 'Garden', hi: 'बगीचा', items: [
+    garden: { en: 'Garden', hi: 'बगीचा', sign: '🌻', scene: 'garden', items: [
       ['🌻', 'Sunflower', 'सूरजमुखी'], ['🌹', 'Rose', 'गुलाब'], ['🌳', 'Tree', 'पेड़'], ['🌱', 'Seedling', 'पौधा'],
       ['🐌', 'Snail', 'घोंघा'], ['🌼', 'Flower', 'फूल'], ['🐝', 'Bee', 'मधुमक्खी']
     ] },
-    clothes: { en: 'Clothes', hi: 'कपड़े', items: [
+    clothes: { en: 'Clothes', hi: 'कपड़े', sign: '👕', scene: 'plain', tint: '#E6E0F7', items: [
       ['👕', 'Shirt', 'कमीज़'], ['👗', 'Dress', 'फ़्रॉक'], ['👟', 'Shoe', 'जूता'], ['🧣', 'Scarf', 'मफ़लर'],
       ['🧦', 'Socks', 'मोज़े'], ['👒', 'Hat', 'टोपी'], ['🧤', 'Gloves', 'दस्ताने']
     ] }
@@ -85,6 +89,11 @@
     if (!item[3]) return true;
     if (drawable[item[0]] === undefined) drawable[item[0]] = SG.canDraw(item[0]);
     return drawable[item[0]];
+  }
+
+  // A hand pointing down at a basket: shown over the right basket after a second try.
+  function pointer() {
+    return svg('svg', { class: 'so-point', viewBox: '-8 -2 28 38', 'aria-hidden': 'true' }, [SG.handShape()]);
   }
 
   function basketArt() {
@@ -124,7 +133,8 @@
       const per = Math.ceil(level.things / groups.length);
       let all = [];
       groups.forEach(function (key) {
-        all = all.concat(SG.shuffle(GROUPS[key].items.filter(canShow)).slice(0, per).map(function (item) {
+        const pile = GROUPS[key].items.filter(function (item) { return canShow(item) && item[0] !== GROUPS[key].sign; });
+        all = all.concat(SG.shuffle(pile).slice(0, per).map(function (item) {
           return { item: item, group: key };
         }));
       });
@@ -141,11 +151,18 @@
       table = el('div', { class: 'so-table', role: 'group', 'aria-label': t('so.table') }, slots.map(function (s) { return s.el; }));
 
       baskets = groups.map(function (key) {
+        const group = GROUPS[key];
         const contents = el('span', { class: 'so-contents', 'aria-hidden': 'true' });
-        const button = el('button', { class: 'so-basket pressable', type: 'button' }, [
+        // The basket stands in its own little scene, with a picture label on its front
+        const button = el('button', { class: 'so-basket pressable so-scene-' + group.scene, type: 'button' }, [
+          pointer(),
           el('span', { class: 'so-basket-name', text: groupName(key) }),
-          el('span', { class: 'so-basket-pic' }, [contents, basketArt()])
+          el('span', { class: 'so-basket-pic' }, [
+            contents,
+            el('span', { class: 'so-basket-body' }, [basketArt(), el('span', { class: 'so-sign', 'aria-hidden': 'true', text: group.sign })])
+          ])
         ]);
+        if (group.tint) button.style.setProperty('--scene', group.tint);
         const basket = { key: key, button: button, contents: contents, count: 0 };
         SG.onTap(button, function () { tapBasket(basket); });
         button.addEventListener('animationend', function () { button.classList.remove('so-wobble'); });
@@ -170,6 +187,8 @@
 
     function layout() {
       if (!table) return;
+      const top = layoutEl.getBoundingClientRect().top + window.pageYOffset;
+      layoutEl.style.minHeight = Math.max(0, window.innerHeight - top - 22) + 'px';
       const fit = cardSize();
       table.style.setProperty('--card', Math.max(fit.size, 100) + 'px');
       table.style.setProperty('--cols', fit.cols);
@@ -408,7 +427,9 @@
   }
 
   // A basket with fruit in it, and an apple on its way in.
-  function illustration() {
+  // `opts.demo`: a hand carries the apple into the basket.
+  function illustration(opts) {
+    const demo = opts && opts.demo;
     const basket = basketArt();
     basket.removeAttribute('class');
     basket.setAttribute('x', 16);
@@ -419,11 +440,18 @@
       svg('circle', { cx: 46, cy: 44, r: 11, fill: '#FB8C00', stroke: '#8A4B00', 'stroke-width': 1.8 }),
       svg('circle', { cx: 67, cy: 42, r: 11, fill: '#8BC34A', stroke: '#33691E', 'stroke-width': 1.8 }),
       basket,
-      svg('path', { d: 'M83 28Q80 38 72 40', fill: 'none', class: 'stroke-accent', 'stroke-width': 3, 'stroke-dasharray': '3.5 4', 'stroke-linecap': 'round' }),
+      svg('path', { d: 'M83 28Q80 38 72 40', fill: 'none', class: 'stroke-accent', 'stroke-width': 3, 'stroke-dasharray': '3.5 4', 'stroke-linecap': 'round' })
+    ].concat(demo
+      ? [SG.demoHand(92, 22, 'slide', -32, 22, [svg('g', { transform: 'translate(-92 -22)' }, apple())])]
+      : apple()));
+  }
+
+  function apple() {
+    return [
       svg('path', { d: 'M92 7V12', stroke: '#5B3A1A', 'stroke-width': 2.5, 'stroke-linecap': 'round' }),
       svg('path', { d: 'M92 9C95 4 101 4 103 6 100 10 95 11 92 9z', fill: '#66BB6A', stroke: '#2E7D32', 'stroke-width': 1.5 }),
       svg('path', { d: 'M92 13C86 9 79 13 79 21 79 29 85 35 92 33 99 35 105 29 105 21 105 13 98 9 92 13z', fill: '#E53935', stroke: '#8E1B1B', 'stroke-width': 1.8 })
-    ]);
+    ];
   }
 
   function preview(levelKey) {

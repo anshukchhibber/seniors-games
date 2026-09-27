@@ -285,7 +285,7 @@
 
       // The status line always reserves two lines, so a longer message never pushes the Hint button.
       statusEl = el('p', { class: 'status ws-status', role: 'status' });
-      const hintBtn = el('button', { class: 'btn btn-secondary ws-hint', type: 'button', text: t('ws.hint') });
+      const hintBtn = SG.iconButton('btn btn-secondary ws-hint', 'bulb', t('ws.hint'));
       SG.onTap(hintBtn, hint);
       foot = el('section', { class: 'ws-foot' }, [
         statusEl,
@@ -646,7 +646,8 @@
   // ---------- Pictures for the home tile and level buttons ----------
 
   // A card of letters with one word highlighted, and a magnifying glass. The same in each script.
-  function illustration() {
+  // `opts.demo`: a hand slides along the highlighted word.
+  function illustration(opts) {
     const hi = SG.lang === 'hi';
     const rows = hi
       ? [['प', 'सू', 'ल', 'न'], ['क', 'म', 'ल', 'टा'], ['ग', 'की', 'र', 'मा']]
@@ -666,6 +667,7 @@
     });
     parts.push(svg('circle', { cx: 94, cy: 71, r: 13, fill: '#FFFFFF', 'fill-opacity': 0.55, class: 'stroke-deep', 'stroke-width': 4.5 }));
     parts.push(svg('path', { d: 'M103.5 80.5L112 89', class: 'stroke-deep', 'stroke-width': 7, 'stroke-linecap': 'round' }));
+    if (opts && opts.demo) parts.push(SG.demoHand(21, 43.5, 'slide', 21 * (word - 1), 0));
     return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 

@@ -34,11 +34,17 @@ window.SG = window.SG || {};
   // different on every tablet. These take the colour of the text around them.
   const ICONS = {
     home: ['M3 11.5L12 4l9 7.5', 'M5.5 9.8V20h13V9.8'],
-    check: ['M5 12.5l4.5 4.5L19 7.5'],
     chevron: ['M9 4.5l7.5 7.5L9 19.5'],
     settings: ['M4 7h9', 'M17 7h3', 'M15 4.5v5', 'M4 17h3', 'M11 17h9', 'M9 14.5v5'],
     levels: ['M5 19.5v-4', 'M12 19.5v-8.5', 'M19 19.5V4.5'],
-    picture: ['M3.5 5h17v14h-17z', 'M3.5 16l5-5 4 4 3-3 4.5 4.5']
+    picture: ['M3.5 5h17v14h-17z', 'M3.5 16l5-5 4 4 3-3 4.5 4.5'],
+    play: ['M8 5.2v13.6L18.8 12z'],
+    again: ['M19.2 12a7.2 7.2 0 1 1-2.1-5.1', 'M19.2 4.2v4.4h-4.4'],
+    fresh: ['M12 5v14', 'M5 12h14'],
+    eye: ['M2.5 12s3.6-6.5 9.5-6.5S21.5 12 21.5 12s-3.6 6.5-9.5 6.5S2.5 12 2.5 12z', 'M12 9.3a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 1 1 0-5.4z'],
+    bulb: ['M9.5 18h5', 'M10.5 21h3', 'M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z'],
+    undo: ['M9 13.5L4.5 9 9 4.5', 'M4.5 9h10a5.5 5.5 0 0 1 0 11H11'],
+    check: ['M5 12.5l4.5 4.5L19 7.5']
   };
 
   SG.icon = function (name) {
@@ -46,6 +52,38 @@ window.SG = window.SG || {};
       class: 'icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
       'stroke-width': 2.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true'
     }, ICONS[name].map(function (d) { return SG.svg('path', { d: d }); }));
+  };
+
+  // A button with a picture as well as a word, for anyone who reads the picture more easily.
+  SG.iconButton = function (className, icon, text) {
+    return SG.el('button', { class: className, type: 'button' }, [SG.icon(icon), SG.el('span', { class: 'btn-text', text: text })]);
+  };
+
+  // A friendly drawn hand, fingertip at (0, 0), pointing up. Used to act out a game's move on its
+  // first-time page, and to point at the right basket.
+  const SKIN = '#F7CFA8', INK = '#1F2A44';
+  SG.handShape = function () {
+    const svg = SG.svg;
+    return svg('g', { class: 'hand-shape' }, [
+      svg('rect', { x: -4.5, y: 11, width: 20, height: 17, rx: 6.5, fill: SKIN, stroke: INK, 'stroke-width': 1.7 }),
+      svg('path', { d: 'M8 12.2v4.6M12.2 12.8v4', stroke: INK, 'stroke-width': 1.4, 'stroke-linecap': 'round' }),
+      svg('ellipse', { cx: -4.2, cy: 19.5, rx: 3.3, ry: 5.4, transform: 'rotate(25 -4.2 19.5)', fill: SKIN, stroke: INK, 'stroke-width': 1.7 }),
+      svg('rect', { x: -3.4, y: 0, width: 6.8, height: 18, rx: 3.4, fill: SKIN, stroke: INK, 'stroke-width': 1.7 }),
+      svg('rect', { x: -3.5, y: 27, width: 18, height: 6.5, rx: 2, class: 'fill-deep', stroke: INK, 'stroke-width': 1.5 })
+    ]);
+  };
+
+  // The hand acting out a move inside a game's illustration, with its fingertip at (x, y).
+  //   kind 'tap':   comes in, presses, lifts.
+  //   kind 'slide': presses at (x, y) and slides by (dx, dy), carrying `carried` (drawn around 0, 0).
+  // It only moves on the first-time page and in How to play (the `demo` class on the picture), and
+  // rests where the move ends; with "reduce motion" it simply rests there from the start.
+  SG.demoHand = function (x, y, kind, dx, dy, carried) {
+    const svg = SG.svg;
+    const mover = svg('g', { class: 'demo-hand demo-' + kind }, (carried || []).concat([SG.handShape()]));
+    mover.style.setProperty('--dx', (dx || 0) + 'px');
+    mover.style.setProperty('--dy', (dy || 0) + 'px');
+    return svg('g', { class: 'demo', transform: 'translate(' + x + ' ' + y + ') scale(0.95)' }, [mover]);
   };
 
   // The gold outline colours keep these visible on white (plain gold on white is only 1.85:1).
@@ -257,7 +295,7 @@ window.SG = window.SG || {};
   SG.winPanel = function (message, trophies, onAgain, levelsHref, options) {
     const el = SG.el;
     options = options || {};
-    const again = el('button', { class: 'btn btn-lg', type: 'button', text: options.again || SG.t('playAgain') });
+    const again = SG.iconButton('btn btn-lg', options.againIcon || 'again', options.again || SG.t('playAgain'));
     SG.onTap(again, onAgain);
     const wrap = SG.panel({
       kind: 'win',
@@ -265,7 +303,7 @@ window.SG = window.SG || {};
       title: options.title || SG.t('wellDone'),
       text: message,
       extra: trophies,
-      actions: [again, SG.link({ class: 'btn btn-secondary', href: levelsHref, text: options.back || SG.t('changeLevel') })]
+      actions: [again, SG.link({ class: 'btn btn-secondary', href: levelsHref }, [SG.icon(options.backIcon || 'levels'), SG.el('span', { class: 'btn-text', text: options.back || SG.t('changeLevel') })])]
     });
     if (!SG.reducedMotion()) wrap.appendChild(SG.confetti());
     return wrap;

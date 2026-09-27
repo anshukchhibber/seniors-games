@@ -56,6 +56,13 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 
 - **As few taps and words as possible before playing.** A game is one tap from home. Nothing
   on a home tile but its picture and name. The only first-time page has one button.
+- **Pictures first, words second** - for a player who reads little, or not in this language.
+  Every action button has a picture as well as a word (▶ start / keep playing, ↻ play again,
+  eye = watch, lightbulb = hint, ↶ undo, ✓ finished). The first-time page has a drawn hand that
+  acts out the move. In Sort into Baskets each basket stands in its own scene (grass for land,
+  waves for water, clouds for sky, sun for hot, snow for cold) and carries a picture label of
+  something that goes in it; after a second try, a hand points at the right basket. In Number
+  Hunt, the number to find is drawn exactly like the tokens to tap.
 - **Nothing pops up.** Every screen is a plain page. "Home" is always top-left (and always navy, the
   same landmark in every game). "How to play" lives permanently on the level page. A game under way
   is never thrown away by opening the level page: **Keep Playing** is the big button there.
@@ -114,7 +121,7 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 | The typeface                      | `@font-face` at the top of `css/style.css`, the files in `fonts/` and in `FILES` in `sw.js` |
 | Grid sizes / number of words      | `LEVELS` at the top of `js/wordsearch.js`         |
 | Tile pictures (and look-alike groups) | `SYMBOLS` in `js/tilematch.js`                 |
-| Sort into Baskets groups and pictures | `GROUPS` and `SETS` in `js/sorting.js`       |
+| Sort into Baskets groups and pictures | `GROUPS` (with each basket's `sign`, `scene`, `tint`) and `SETS` in `js/sorting.js`; the scenes are `.so-scene-*` in `css/style.css` |
 | Colouring pictures and palette    | `PICTURES` and `COLOURS` in `js/colouring.js`     |
 | Pattern pads (shape, colour, note), lengths | `PADS` and `LEVELS` in `js/pattern.js`  |
 | Colours, text sizes, spacing (design tokens) | `:root` at the top of `css/style.css`   |
@@ -129,8 +136,9 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
    Playing. Use `SG.onTap` for every tap, `SG.timers()`, `SG.bestGrid`, `SG.winPanel` (pass
    `'#/<key>/levels'` as its link), `SG.sound.good(i)` for each right answer, `SG.reducedMotion()`
    before any movement, and add the class `pressable` to the game's own big buttons.
-2. `illustration()` returns one SVG (`viewBox="0 0 120 90"`, class `illus`) for the home tile, the
-   first-time page and How to play. Use the classes `fill-accent`, `fill-deep`, `fill-tint`,
+2. `illustration(opts)` returns one SVG (`viewBox="0 0 120 90"`, class `illus`) for the home tile, the
+   first-time page and How to play. When `opts.demo` is set, add `SG.demoHand(x, y, 'tap' | 'slide', dx, dy)`
+   so a hand acts out the game's move. Use the classes `fill-accent`, `fill-deep`, `fill-tint`,
    `stroke-deep` and `stroke-accent` so it takes the game's colour.
 3. Give the game a colour: a `[data-game="<key>"]` line in `css/style.css` with its four accent
    values. Check the contrast (the ratios are listed above those lines).
