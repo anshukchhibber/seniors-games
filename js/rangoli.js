@@ -127,7 +127,7 @@
     const n = LEVELS[levelKey].n;
     const points = guidePoints(n);
 
-    let stamps, colour, shape, finished, pointerId, cursor;
+    let stamps, colour, shape, finished, pointerId, cursor, booth;
     let layoutEl, boardBox, boardSvg, design, cursorEl, statusEl, currentEl, swatches, shapeBtns;
 
     function status() {
@@ -326,13 +326,20 @@
       }
       finished = true;
       SG.sound.win();
+      showFinished();
+    }
+
+    // The finished rangoli, with a photo button: a selfie with the masterpiece
+    function showFinished() {
+      if (booth) { booth.stop(); booth = null; }
       const panel = SG.winPanel(t('rg.doneText'), null, keepGoing, '#/rangoli/levels', {
         title: t('col.doneTitle'),
         art: drawBoard(levelKey, stamps, 'col-finished rg-finished', false),
         again: t('rg.keep'),
         againIcon: 'play',
         back: t('rg.another'),
-        backIcon: 'picture'
+        backIcon: 'picture',
+        photo: function () { booth = SG.photoBooth(stage, drawBoard(levelKey, stamps, '', false), showFinished); }
       });
       stage.textContent = '';
       boardBox = null;
@@ -341,6 +348,7 @@
     }
 
     function keepGoing() {
+      if (booth) { booth.stop(); booth = null; }
       finished = false;
       render();
       layout();
@@ -370,6 +378,7 @@
         return stamps.length && !finished ? t('rg.progress') : null;
       },
       destroy: function () {
+        if (booth) booth.stop();
         window.removeEventListener('resize', layout);
       },
       // for the playtest: a few marks, then "I'm Finished"

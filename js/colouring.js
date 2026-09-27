@@ -204,7 +204,7 @@
     const picture = PICTURES[pictureKey];
     const t = SG.t;
 
-    let fills, history, colour, pressedPart, pointerId, finished, spreads = 0;
+    let fills, history, colour, pressedPart, pointerId, finished, booth, spreads = 0;
     let layoutEl, pictureBox, pictureSvg, palette, swatches, tools, statusEl, currentEl;
 
     function render() {
@@ -386,6 +386,12 @@
       }
       SG.sound.win();
       finished = true;
+      showFinished();
+    }
+
+    // The finished picture, with a photo button: a selfie with the masterpiece
+    function showFinished() {
+      if (booth) { booth.stop(); booth = null; }
       const name = picture[SG.lang] || picture.en;
       const panel = SG.winPanel(t('col.doneText', name), null, keepColouring, '#/colouring/levels', {
         title: t('col.doneTitle'),
@@ -393,7 +399,8 @@
         again: t('col.keep'),
         againIcon: 'play',
         back: t('col.another'),
-        backIcon: 'picture'
+        backIcon: 'picture',
+        photo: function () { booth = SG.photoBooth(stage, draw(picture, fills, '', false), showFinished); }
       });
       stage.textContent = '';
       pictureBox = null;
@@ -402,6 +409,7 @@
     }
 
     function keepColouring() {
+      if (booth) { booth.stop(); booth = null; }
       finished = false;
       render();
       layout();
@@ -432,6 +440,7 @@
         return n && !finished ? t('col.progress', n) : null;
       },
       destroy: function () {
+        if (booth) booth.stop();
         window.removeEventListener('resize', layout);
       },
       // for the playtest: colour every part and press "I'm Finished"

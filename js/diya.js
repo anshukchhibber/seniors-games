@@ -11,19 +11,19 @@
   const svg = SG.svg;
 
   // diyas: how many to light. dots: between two diyas. bend: how curved each stretch of path is.
+  // catchPx: how near a dot the finger must come (a steadier hand is needed as it gets smaller).
+  // reach: how many dots ahead the light can jump at once (1: every dot must be reached in turn).
   const LEVELS = {
-    easy: { diyas: 3, dots: 7, bend: 0.18 },
-    medium: { diyas: 5, dots: 8, bend: 0.32 },
-    hard: { diyas: 7, dots: 9, bend: 0.45 }
+    easy: { diyas: 4, dots: 9, bend: 0.3, catchPx: 34, reach: 2 },
+    medium: { diyas: 6, dots: 11, bend: 0.45, catchPx: 28, reach: 1 },
+    hard: { diyas: 8, dots: 13, bend: 0.62, catchPx: 22, reach: 1 }
   };
-
-  const REACH = 3;           // a finger can move the light up to this many dots ahead at once
   const WIN_PAUSE_MS = 2000;
 
   // Where the diyas go, 0-1 across and down: along a zigzag that suits the board's shape
   // (rows across a wide board, columns down a tall one), each nudged a little from its place.
   function route(count, wide) {
-    const perLine = count <= 3 ? count : count <= 5 ? 3 : 4; // 3 in a line; 3 + 2; 4 + 3
+    const perLine = count <= 4 ? Math.min(count, 2) : 3; // 2 + 2; 3 + 3; 3 + 3 + 2
     const lines = Math.ceil(count / perLine);
     const spots = [];
     for (let i = 0; i < count; i++) {
@@ -88,8 +88,17 @@
       spots.forEach(function (s, i) {
         path.push(Object.assign(px(s), { diya: i }));
         if (i === spots.length - 1) return;
+        // The dots go at even distances along the curve, so they never bunch up on a bend
+        const fine = [];
+        for (let k = 0; k <= 120; k++) fine.push(px(stretch(s, spots[i + 1], bends[i], k / 120)));
+        const along = [0];
+        for (let k = 1; k < fine.length; k++) along.push(along[k - 1] + Math.hypot(fine[k].x - fine[k - 1].x, fine[k].y - fine[k - 1].y));
+        const total = along[along.length - 1];
+        let k = 0;
         for (let d = 1; d <= level.dots; d++) {
-          path.push(Object.assign(px(stretch(s, spots[i + 1], bends[i], d / (level.dots + 1))), { diya: -1 }));
+          const want = total * d / (level.dots + 1);
+          while (k < along.length - 1 && along[k + 1] < want) k++;
+          path.push(Object.assign({ x: fine[k].x, y: fine[k].y }, { diya: -1 }));
         }
       });
     }
@@ -118,7 +127,10 @@
       trailEl = svg('polyline', { class: 'dy-trail', fill: 'none' });
       board.appendChild(trailEl);
 
-      const r = SG.clamp(Math.min(width, height) / 60, 6, 10);
+      // Dot size: big enough to see and aim at, small enough that neighbours never touch
+      let spacing = Infinity;
+      for (let i = 1; i < path.length; i++) spacing = Math.min(spacing, Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y));
+      const r = SG.clamp(Math.min(Math.min(width, height) / 60, spacing * 0.36), 5, 10);
       dotEls = path.map(function (p) {
         if (p.diya >= 0) return null;
         const dot = svg('circle', { class: 'dy-dot', cx: p.x, cy: p.y, r: r });
@@ -191,10 +203,9 @@
     function touch(clientX, clientY) {
       const r = board.getBoundingClientRect();
       const x = (clientX - r.left) * width / r.width, y = (clientY - r.top) * height / r.height;
-      const spacing = path.length > 1 ? Math.hypot(path[1].x - path[0].x, path[1].y - path[0].y) : 40;
-      const catchR = Math.max(38, spacing * 0.75);
+      const catchR = level.catchPx * SG.clamp(Math.min(width, height) / 600, 0.85, 1.3);
       let best = -1;
-      for (let i = reached + 1; i <= Math.min(reached + REACH, path.length - 1); i++) {
+      for (let i = reached + 1; i <= Math.min(reached + level.reach, path.length - 1); i++) {
         if (Math.hypot(path[i].x - x, path[i].y - y) <= catchR) best = i;
       }
       if (best > reached) reach(best);

@@ -116,6 +116,7 @@
 [data-game="colouring"]  { --accent: #C9457E; --accent-deep: #8E2A5C; --accent-tint: #FBE1EC; --accent-pressed: #5E1A3C; --accent-wash: #FFF5F9; }
 [data-game="harmonium"]  { --accent: #A0652A; --accent-deep: #5E3814; --accent-tint: #F5E6D3; --accent-pressed: #3D230B; --accent-wash: #FCF6EF; }
 [data-game="rangoli"]    { --accent: #1E86C8; --accent-deep: #0B4F7C; --accent-tint: #D8EDFB; --accent-pressed: #063352; --accent-wash: #F2F9FE; }
+[data-game="chai"]       { --accent: #6E7D1F; --accent-deep: #45500F; --accent-tint: #EDF1D2; --accent-pressed: #2C340A; --accent-wash: #F8FAEE; }
 [data-game="diya"]       { --accent: #4F57C4; --accent-deep: #2B3190; --accent-tint: #E2E4FA; --accent-pressed: #1B1F63; --accent-wash: #F4F5FD; }
 /* The raised edges are re-declared too: a custom property that uses another is worked out where
    it is declared, so these would otherwise stay navy. */
@@ -593,41 +594,43 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .ws-board-wrap { grid-area: board; min-width: 0; }
 .ws-foot { grid-area: foot; display: grid; grid-template-columns: 1fr auto; align-items: start; gap: var(--space-3) var(--space-5); }
 
-.ws-topic { font-size: var(--text-lead); margin-bottom: var(--space-2); }
-.ws-topic strong { color: var(--accent-deep); }
+.ws-topic { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-title); margin-bottom: var(--space-2); }
+.ws-topic-icon { font-family: var(--font-emoji); font-size: 1.3em; line-height: 1; }
+.ws-topic strong { color: var(--accent-deep); font-weight: 800; }
 
-/* The word list is a checklist, not a row of buttons: flat, with a ring that gets ticked */
-.ws-words { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
+/* The words to find: big and clear, each on its own white card. Found: filled with the colour of
+   its band in the grid, ticked (and crossed through, in English). Flat, so they read as a list
+   rather than as buttons. */
+.ws-words { list-style: none; margin: 0; padding: 9px 9px 0 0; display: flex; flex-wrap: wrap; gap: var(--space-3); } /* room for the tick badges */
 .ws-word {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 3px 10px 3px 8px;
-  border: var(--border-thin) solid transparent;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-label);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
-}
-.ws-word-mark {
-  flex: none;
-  width: 0.85em;
-  height: 0.85em;
+  padding: 2px 12px;
+  background: var(--color-surface);
   border: var(--border-thin) solid var(--color-line-strong);
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lead);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
 }
+.ws-word-mark { display: none; }
 .ws-word.found { background: var(--mark); border-color: var(--mark-edge); }
 .ws-word.found .ws-word-text { text-decoration: line-through; text-decoration-thickness: 2px; }
 .ws-word.found .ws-word-mark {
-  border-color: transparent;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F2A44' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5 5L20 6.5'/%3E%3C/svg%3E") center / 100% no-repeat;
+  /* a tick badge on the corner: it takes no room, so nothing in the list moves */
+  display: block;
+  position: absolute;
+  top: -9px; right: -9px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #1F2A44 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 72% no-repeat;
 }
 /* Dashed, so the hinted word is marked by shape as well as colour. An outline never changes the chip's size. */
 .ws-word.hinting { outline: var(--border) dashed var(--color-action); outline-offset: 0; }
 
 .ws-hint { justify-self: end; }
-.ws-tip { color: var(--color-ink-soft); display: none; } /* shown beside the grid on wide screens; "How to play" is on the level page */
 
 .ws-board {
   position: relative;
@@ -685,7 +688,6 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   }
   .ws-foot { grid-template-columns: 1fr; align-self: start; }
   .ws-hint { justify-self: stretch; }
-  .ws-tip { display: block; }
 
   /* Left-handed play: the word list and Hint sit on the left, so nobody reaches across the grid */
   .hand-left .ws-layout { grid-template-columns: 340px auto; grid-template-areas: "info board" "foot board"; }
@@ -702,63 +704,47 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   grid-auto-rows: var(--tile, 100px);
   gap: var(--gap, 16px);
   justify-content: center;
-  padding-bottom: 6px; /* room for the raised edge of the last row */
+  padding: 8px 0 6px; /* room for a lifted tile and the raised edge */
 }
 
-/* A card that really turns over. The button keeps its box; only the card inside it turns. */
-.tm-tile { position: relative; padding: 0; border: 0; background: none; perspective: 900px; cursor: pointer; }
-.tm-card {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  transform-style: preserve-3d;
-  transition: transform 0.45s cubic-bezier(0.3, 0.7, 0.3, 1.15);
-}
-.tm-back, .tm-face {
-  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  border-radius: 16%;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-/* The back: the game's colour, a frame and a pattern of little suns - plainly "the back of a card" */
-.tm-back {
-  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-opacity='.6' stroke-width='1.6'%3E%3Ccircle cx='12' cy='12' r='3.2'/%3E%3Cpath d='M12 4.5v2M12 17.5v2M4.5 12h2M17.5 12h2' stroke-linecap='round'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3Ccircle cx='24' cy='0' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3Ccircle cx='0' cy='24' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3Ccircle cx='24' cy='24' r='1.6' fill='%23fff' fill-opacity='.6' stroke='none'/%3E%3C/svg%3E") center / 34% repeat;
-  border: var(--border) solid var(--accent-deep);
-  box-shadow: 0 5px 0 var(--accent-deep), inset 0 0 0 7px var(--accent), inset 0 0 0 9.5px rgba(255, 255, 255, 0.8);
-  transition: box-shadow var(--motion-press);
-}
-.tm-face {
-  display: flex; align-items: center; justify-content: center; /* centred by box, not by font baseline (which differs per tablet) */
-  transform: rotateY(180deg);
+/* A picture: a raised white card - it can be pressed */
+.tm-tile {
+  position: relative;
+  padding: 0;
   background: var(--color-surface);
   border: var(--border) solid var(--accent-deep);
-  font-family: var(--font-emoji);
-  font-size: calc(var(--tile, 100px) * 0.6);
-  line-height: 1;
-  visibility: hidden;
-  transition: visibility 0s linear 0.22s; /* hidden once it has turned away (for tablets without 3D) */
+  border-radius: 16%;
+  box-shadow: 0 5px 0 var(--accent-deep);
+  cursor: pointer;
+  transition: transform var(--motion-press), box-shadow var(--motion-press), opacity var(--motion-state);
 }
-.tm-tile.up { cursor: default; }
-.tm-tile.up .tm-card { transform: rotateY(180deg); }
-.tm-tile.up .tm-face { visibility: visible; transition-delay: 0s; }
-/* A press pushes the card down before it turns */
-.tm-tile.is-pressed:not(.up) .tm-card { transform: translateY(4px); }
-.tm-tile.is-pressed:not(.up) .tm-back { box-shadow: 0 1px 0 var(--accent-deep), inset 0 0 0 7px var(--accent), inset 0 0 0 9.5px rgba(255, 255, 255, 0.8); }
-
-/* Matched: a thick green edge and a solid ticked badge, and a little hop */
-.tm-tile.matched .tm-face { background: var(--color-done-tint); border: var(--border-thick) solid var(--color-done); }
-.tm-tile.matched .tm-face::after {
+.tm-face {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  display: flex; align-items: center; justify-content: center; /* centred by box, not by font baseline */
+  font-family: var(--font-emoji);
+  font-size: calc(var(--tile, 100px) * 0.62);
+  line-height: 1;
+}
+.tm-tile.is-pressed { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-deep); }
+/* Chosen: lifted, with a thick ring (shape as well as colour) */
+.tm-tile.picked { transform: translateY(-6px); box-shadow: 0 11px 0 var(--accent-deep); outline: 5px solid var(--accent-deep); outline-offset: 3px; background: var(--accent-tint); }
+/* Matched: settled flat, green, ticked, and faded back, so the pictures still to find stand out */
+.tm-tile.matched { background: var(--color-done-tint); border: var(--border-thick) solid var(--color-done); box-shadow: none; transform: translateY(5px); cursor: default; }
+.tm-tile.matched .tm-face { opacity: 0.45; }
+.tm-tile.matched::after {
   content: "";
   position: absolute;
   top: 4%; right: 4%;
-  width: 27%; height: 27%;
+  width: 30%; height: 30%;
   min-width: 26px; min-height: 26px;
   border-radius: 50%;
   background: var(--color-done) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 72% no-repeat;
 }
-.tm-tile.matched .tm-card { animation: tm-hop 0.5s ease-out 0.4s; }
-
-@keyframes tm-hop {
-  0%, 100% { transform: rotateY(180deg) scale(1); }
-  45% { transform: rotateY(180deg) scale(1.1); }
+/* Not the same: a little shake, and they are let go */
+.tm-tile.tm-nope { animation: tm-nope 0.45s ease-in-out; }
+@keyframes tm-nope {
+  20%, 60% { transform: translateX(-7px) rotate(-3deg); }
+  40%, 80% { transform: translateX(7px) rotate(3deg); }
 }
 
 .tm-trophies { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-family: var(--font-emoji); font-size: 48px; line-height: 1.1; }
@@ -773,81 +759,92 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 /* The number being looked for is the biggest thing on the screen */
 .nh-target { display: flex; align-items: baseline; gap: var(--space-3); font-size: var(--text-lead); line-height: 1; white-space: nowrap; }
 .nh-target { align-items: center; }
-/* Drawn exactly like the tokens on the board, so "find this one" needs no reading */
+/* Drawn just like the kites in the sky, so "find this one" needs no reading */
+.nh-target-kite { position: relative; flex: none; width: 104px; height: 104px; }
 .nh-target-number {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1.75em; height: 1.75em; /* room for "30", so nothing beside it moves */
-  border: var(--border) solid var(--accent-deep);
-  border-radius: 50%;
-  background: var(--color-surface);
-  box-shadow: 0 5px 0 var(--accent-deep);
+  position: absolute;
+  left: 50%; top: 41%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  min-width: 56px; height: 50px;
+  padding: 0 6px;
+  border: var(--border) solid #1F2A44;
+  border-radius: 999px;
+  background: #FFFFFF;
   color: var(--color-ink);
-  font-size: 2.4rem; font-weight: 800; line-height: 1;
+  font-size: 2rem; font-weight: 800; line-height: 1;
 }
 
-/* The tokens are placed by numbers.js, each inside its own cell, so they never overlap */
-.nh-board { position: relative; margin: 0 auto; touch-action: none; }
+/* The sky. The kites are placed by numbers.js, each inside its own cell, so they never overlap */
+.nh-board {
+  position: relative;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(#BFE1FB, #E9F5FE);
+  box-shadow: 0 0 0 10px #D8ECFC; /* a little more sky round the edge, outside the board's size */
+  touch-action: none;
+}
 
+/* A kite: the whole square is the button (big to press); the number sits on a white patch */
 .nh-tile {
   position: absolute;
   width: var(--token, 80px);
   height: var(--token, 80px);
   padding: 0;
-  border: var(--border) solid var(--accent-deep);
-  border-radius: 50%;
-  background: var(--color-surface);
-  box-shadow: 0 5px 0 var(--accent-deep);
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  cursor: pointer;
+  transition: transform var(--motion-press), opacity var(--motion-state);
+}
+.nh-kite { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; }
+.nh-diamond { stroke: #1F2A44; }
+.nh-tail { stroke: #1F2A44; }
+.nh-num {
+  position: absolute;
+  left: 50%; top: 41%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  min-width: 46%; height: 46%;
+  padding: 0 4px;
+  border: var(--border-thin) solid #1F2A44;
+  border-radius: 999px;
+  background: #FFFFFF;
   color: var(--color-ink);
   font: inherit;
-  font-size: calc(var(--token, 80px) * 0.44);
+  font-size: calc(var(--token, 80px) * 0.3);
   font-weight: 800;
   line-height: 1;
-  cursor: pointer;
-  transition: transform var(--motion-press), box-shadow var(--motion-press), background-color var(--motion-press);
 }
-.nh-tile:active, .nh-tile.is-pressed { background-color: var(--accent-tint); box-shadow: 0 1px 0 var(--accent-deep); transform: translateY(4px); }
-/* Found: flat, green and ticked, the number still readable - a change of shape, not just of colour */
-.nh-tile.done {
-  background: var(--color-done-tint);
-  border-color: var(--color-done);
-  box-shadow: none;
-  color: var(--color-done);
-  cursor: default;
-  transform: translateY(4px);
-  animation: nh-pop 0.4s ease-out;
-}
+.nh-tile:active, .nh-tile.is-pressed { transform: translateY(4px) scale(0.96); }
+/* Found: the kite fades back, with a green tick - the ones still to find stand out */
+.nh-tile.done { opacity: 0.4; cursor: default; transform: translateY(-4px); animation: nh-pop 0.4s ease-out; }
+.nh-tile.done .nh-num { background: var(--color-done-tint); border-color: var(--color-done); color: var(--color-done); }
 .nh-tile.done::after {
   content: "";
   position: absolute;
-  top: -6%; right: -6%;
-  width: 34%; height: 34%;
+  top: 2%; right: 6%;
+  width: 30%; height: 30%;
   min-width: 22px; min-height: 22px;
   border-radius: 50%;
   background: var(--color-done) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center / 70% no-repeat;
 }
-.nh-tile.done:active, .nh-tile.done.is-pressed { background-color: var(--color-done-tint); box-shadow: none; transform: translateY(4px); }
+.nh-tile.done:active, .nh-tile.done.is-pressed { transform: translateY(-4px); }
 /* Dashed, so the hint is a shape as well as a colour. Three gentle pulses, then it simply stays. */
-.nh-tile.hinting { outline: var(--border-thick) dashed var(--accent-deep); outline-offset: 5px; animation: nh-pulse 1.2s ease-in-out 3; }
+.nh-tile.hinting { outline: var(--border-thick) dashed var(--accent-deep); outline-offset: 4px; border-radius: 50%; animation: nh-pulse 1.2s ease-in-out 3; }
 
 @keyframes nh-pop {
-  0% { transform: translateY(4px) scale(1); }
-  40% { transform: translateY(4px) scale(1.16); }
-  100% { transform: translateY(4px) scale(1); }
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  40% { transform: translateY(-10px) scale(1.12); opacity: 1; }
+  100% { transform: translateY(-4px) scale(1); opacity: 0.4; }
 }
 @keyframes nh-pulse {
   50% { outline-color: var(--accent); }
 }
 
-.nh-trophies { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 520px; margin-left: auto; margin-right: auto; }
-.nh-trophies span {
-  display: flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px;
-  border: var(--border-thin) solid var(--color-done);
-  border-radius: 50%;
-  background: var(--color-done-tint);
-  color: var(--color-done);
-  font-size: 20px; font-weight: 800; line-height: 1;
-}
+.nh-trophies { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 540px; margin-left: auto; margin-right: auto; }
+.nh-trophy { position: relative; width: 48px; height: 48px; }
+.nh-trophy .nh-num { font-size: 15px; }
 
 @media (max-width: 640px) {
   .nh-info { grid-template-columns: 1fr; }
@@ -907,13 +904,33 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .pt-pad.pt-ink { color: var(--color-ink); }
 .pt-shape { width: 58%; height: 58%; fill: currentColor; }
 .pt-pad.is-pressed { transform: translateY(4px); box-shadow: 0 1px 0 var(--color-ink); }
+.pt-pad { position: relative; }
+/* Lit: white with the shape in its colour, a thick ring, a warm glow round it, a little bigger -
+   and while the pattern is being shown, a badge with its step number (1, 2, 3...) */
 .pt-pad.lit {
+  z-index: 1;
   background: #FFFFFF;
   color: var(--pad);
   border-color: var(--color-ink);
   outline: 6px solid var(--pad);
   outline-offset: -12px;
+  transform: scale(1.07);
+  box-shadow: 0 0 0 7px #FFF3C4, 0 0 34px 14px var(--pad);
 }
+.pt-pad[data-step]::after {
+  content: attr(data-step);
+  position: absolute;
+  top: 7%; left: 7%;
+  display: flex; align-items: center; justify-content: center;
+  width: 34%; height: 34%;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: #FFFFFF;
+  font-size: calc(var(--pad-size, 160px) * 0.2);
+  font-weight: 800;
+  line-height: 1;
+}
+.pt-dots .shown { background: var(--accent-tint); }
 .pt-pad.lit .pt-shape { stroke: var(--color-ink); stroke-width: 0.9; stroke-linejoin: round; }
 .pt-showing .pt-pad { cursor: default; }
 
@@ -1034,6 +1051,36 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 /* Shown after a second try: dashed (a shape, not just a colour), three gentle pulses, then it stays */
 .so-basket.so-hint { outline: var(--border-thick) dashed var(--accent-deep); outline-offset: 5px; animation: nh-pulse 1.2s ease-in-out 3; }
 .so-basket.so-wobble .so-basket-body { animation: so-wobble 0.5s ease-in-out; }
+/* Not this basket: it shakes its head, and a big grey cross appears on it for a moment */
+.so-basket.so-nope { animation: so-shake 0.5s ease-in-out; }
+.so-basket.so-nope::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 84px; height: 84px;
+  margin: -42px 0 0 -42px;
+  border: 4px solid #FFFFFF;
+  border-radius: 50%;
+  background: #4A5468 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7L7 17'/%3E%3C/svg%3E") center / 60% no-repeat;
+  box-shadow: 0 4px 0 rgba(31, 42, 68, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  animation: so-cross 1.4s ease-out;
+}
+.so-card.so-wobble-card { animation: so-wobble-card 0.45s ease-in-out; }
+@keyframes so-shake {
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+@keyframes so-cross {
+  0% { opacity: 0; transform: scale(0.5); }
+  15%, 70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes so-wobble-card {
+  25% { transform: rotate(-7deg); }
+  75% { transform: rotate(7deg); }
+}
 .so-basket-name {
   padding: 0 10px;
   border-radius: var(--radius-sm);
@@ -1173,7 +1220,7 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .hm-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); justify-items: center; }
 .hm-status { text-align: center; width: 100%; }
 /* The phrase to play, in sargam: the next note ringed, the ones played ticked green */
-.hm-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 100%; }
+.hm-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 8px; max-width: 100%; padding: 8px 12px; }
 .hm-chip {
   min-width: 46px;
   padding: 0 10px;
@@ -1186,7 +1233,9 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
   line-height: 1.7;
   text-align: center;
 }
-.hm-chip.next { border: var(--border-thick) solid var(--accent-deep); }
+/* The syllable to play now: ringed in its key's colour and a little bigger (drawn bigger, so the
+   words beside it never move) */
+.hm-chip.next { position: relative; z-index: 1; border: var(--border-thick) solid var(--accent-deep); outline: 4px solid var(--key); transform: scale(1.3); }
 .hm-chip.done { border-color: var(--color-done); background: var(--color-done-tint); color: var(--color-done); box-shadow: none; }
 .hm-board-wrap { width: 100%; }
 /* Room above the keys for the hand that points at the next one */
@@ -1204,7 +1253,7 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .hm-key {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  padding: 0 0 12px;
+  padding: 0 0 18px;
   background: var(--color-surface);
   border: var(--border) solid var(--color-ink);
   border-radius: 14px;
@@ -1218,9 +1267,17 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .hm-cap { position: absolute; top: 0; left: 0; right: 0; height: 26%; background: var(--key); border-bottom: var(--border) solid var(--color-ink); border-radius: 11px 11px 0 0; }
 .hm-name { font-size: clamp(22px, calc(var(--key-w, 90px) * 0.4), 44px); font-weight: 800; line-height: 1.15; }
 .hm-other { font-size: var(--text-body); font-weight: 700; color: var(--color-ink-soft); line-height: 1.2; }
-/* High Sa has a dot above it, as sargam is written */
-.hm-high .hm-name { position: relative; }
-:lang(en) .hm-high .hm-name::before { content: ""; position: absolute; top: -6px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: currentColor; }
+/* Written as sargam is written: a dot above a high note, a dot below a low one, a line under a
+   komal note and a line over tivra Ma */
+.hm-name { position: relative; }
+.hm-high .hm-name::before, .hm-low .hm-name::after { content: ""; position: absolute; left: 50%; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: currentColor; }
+.hm-high .hm-name::before { top: -8px; }
+.hm-low .hm-name::after { bottom: -8px; }
+.hm-komal .hm-name { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.hm-low.hm-komal .hm-name::after { bottom: -14px; }
+.hm-tivra .hm-name { text-decoration: overline; text-decoration-thickness: 3px; }
+/* A syllable held over from the one before (one syllable, several notes) */
+.hm-chip.hm-held { min-width: 30px; color: var(--color-ink-soft); }
 /* Sounding: pressed down, and glowing warm */
 .hm-key.is-pressed, .hm-key.sounding { transform: translateY(5px); box-shadow: 0 1px 0 var(--color-ink); background: #FFF4CC; }
 .hm-key.hm-next { outline: 5px solid var(--accent-deep); outline-offset: 4px; }
@@ -1294,6 +1351,86 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .dy-trophies { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 .dy-trophies svg { width: 64px; height: 58px; }
 
+/* ---------- Making Chai ---------- */
+
+.ch-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.ch-status { text-align: center; }
+/* The row the steps go into: numbered places, filled in order */
+.ch-row { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: var(--space-2); max-width: 820px; width: 100%; margin: 0 auto; }
+.ch-slot {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1;
+  max-height: 110px;
+  border: var(--border) dashed var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.ch-slot-num { font-size: 2rem; font-weight: 800; color: var(--accent-deep); line-height: 1; }
+.ch-slot.filled { border-style: solid; border-color: var(--color-done); background: var(--color-done-tint); }
+.ch-slot.filled .ch-slot-num { position: absolute; top: -10px; left: -10px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-done); color: #FFFFFF; font-size: 1rem; z-index: 2; }
+/* The steps, mixed up: big cards with a picture and a few words */
+.ch-pile { display: grid; grid-template-columns: repeat(var(--cols, 3), var(--card, 160px)); grid-auto-rows: var(--card, 160px); gap: 14px; justify-content: center; align-content: center; padding-top: 12px; }
+.ch-place { position: relative; border: var(--border-thin) dashed var(--color-line); border-radius: var(--radius-lg); }
+.ch-place:not(:empty) { border-color: transparent; }
+.ch-card {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 6px;
+  background: var(--color-surface);
+  border: var(--border) solid var(--accent-deep);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 5px 0 var(--accent-deep);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--motion-press), box-shadow var(--motion-press);
+}
+.ch-card.is-pressed { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-deep); }
+.ch-pic { font-family: var(--font-emoji); font-size: calc(var(--card, 160px) * 0.4); line-height: 1; }
+.ch-words { font-size: var(--text-label); font-weight: 800; line-height: 1.15; text-align: center; }
+/* Placed: small, flat and ticked in its numbered place in the row */
+.ch-card.ch-placed { position: absolute; top: 4px; right: 4px; bottom: 4px; left: 4px; padding: 2px; border: 0; box-shadow: none; background: none; cursor: default; }
+.ch-card.ch-placed .ch-pic { font-size: min(52px, 5.5vw); }
+.ch-card.ch-placed .ch-words { display: none; }
+.ch-card.ch-nope { animation: tm-nope 0.45s ease-in-out; }
+.ch-point { display: none; position: absolute; left: 50%; top: -50px; width: 44px; height: 60px; margin-left: -22px; transform: rotate(180deg); pointer-events: none; overflow: visible; z-index: 3; }
+.ch-card.ch-hint { outline: var(--border-thick) dashed var(--accent-deep); outline-offset: 5px; }
+.ch-card.ch-hint .ch-point { display: block; animation: so-point 0.8s ease-in-out 3; }
+.ch-trophies { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; text-align: left; justify-content: center; counter-reset: step; }
+.ch-trophies li { display: flex; align-items: center; gap: 10px; font-weight: 700; counter-increment: step; }
+.ch-trophies li::before { content: counter(step); display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-deep); color: #FFFFFF; font-size: 17px; }
+.ch-trophy-pic { font-family: var(--font-emoji); font-size: 28px; }
+.level-art-ch { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 2px; font-family: var(--font-emoji); font-size: 24px; line-height: 1.1; }
+
+/* ---------- A photo with the masterpiece ---------- */
+
+.pb-layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); justify-items: center; padding-bottom: 6px; }
+.pb-status { text-align: center; }
+.pb-view {
+  position: relative;
+  width: 100%; height: 100%;
+  max-width: 900px;
+  min-height: 160px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: #1F2A44;
+  box-shadow: 0 6px 0 var(--accent-deep);
+}
+.pb-video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* like a mirror */
+/* The masterpiece, framed in the corner - where it will be in the photo */
+.pb-art { position: absolute; right: 3%; bottom: 4%; width: 34%; max-width: 280px; aspect-ratio: 1; padding: 1.5%; background: #FFFFFF; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); }
+.pb-art svg { display: block; width: 100%; height: 100%; }
+.pb-art.pb-art-only { position: static; margin: 4% auto; width: auto; height: 88%; max-width: none; }
+.pb-count { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: min(30vmin, 220px); font-weight: 800; line-height: 1; text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6); pointer-events: none; }
+.pb-shot { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pb-flash::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #FFFFFF; animation: pb-flash 0.3s ease-out forwards; }
+@keyframes pb-flash {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
+.pb-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-3); }
+
 /* ---------- Hindi (Devanagari) ---------- */
 
 /* Vowel signs sit above and below the line, so lines need more air; and letter-spacing must be
@@ -1335,7 +1472,13 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 @media (max-height: 560px) {
   .app { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
   .bar { margin-bottom: var(--space-2); }
-  .ws-tip { display: none !important; }
+  /* The messages here are short: one line is enough on a wide, short screen */
+  .hm-status, .ch-status, .so-status, .tm-status, .pt-status, .dy-status { min-height: 1.4em; }
+  .ws-topic { font-size: var(--text-lead); margin-bottom: var(--space-1); }
+  .ws-word { font-size: var(--text-body); }
+  .ch-slot { max-height: 60px; }
+  .ch-slot-num { font-size: 1.4rem; }
+  .ch-pile { padding-top: 4px; }
 }
 
 /* Sideways phone: the pads in one row with Watch beside them; the baskets in a column beside the
@@ -1391,5 +1534,6 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .confetti { display: none; }
+  .so-basket.so-nope::after { opacity: 1; } /* the cross stays until the next move */
   .demo-run .demo-fill { fill: #E53935; }
 }

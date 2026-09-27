@@ -5,19 +5,31 @@ accounts, and no internet needed once it has been opened.
 
 | Game | Its colour | What it is good for |
 | --- | --- | --- |
-| **Word Search** | amber | Find hidden words. Vocabulary and scanning; sliding along a word practises a controlled drag. |
-| **Tile Match** | teal | Cards really turn over; find the pairs. Short-term memory. |
-| **Number Hunt** | terracotta | Tap 1, 2, 3... on big round tokens scattered over the screen (12, 20 or 30 of them). Attention and visual search; the hand reaches all over the screen. |
-| **Repeat the Pattern** | purple | Pads light up in turn (each with its own colour, shape and note); tap them back. Each pattern is one longer. A slip just means "watch again". |
-| **Sort into Baskets** | green | Four pictures on the table at a time. Tap one and then its basket, or slide it in (fruit / vegetables, hot / cold, land / water...). Reaching, dragging and simple grouping. |
-| **Colouring Book** | rose | Choose a colour, tap part of a picture and the colour spreads out from your finger: flower, house, butterfly, kite, diya, lotus, rangoli. Creative and calming; nothing can go wrong. Every picture is kept, so the picture page is also the gallery. |
-| **Harmonium** | wood brown | Eight big keys, सा to सां, each with its own colour and a warm reed sound that lasts as long as the key is held. Play freely, or follow the glowing key (and the pointing hand) through Sa Re Ga Ma, Twinkle Twinkle or Jingle Bells; "Listen" plays the line first. Finger-by-finger movement, music and joy. |
-| **Rangoli Mirror** | blue | Choose a colour and a shape, tap the floor, and the mark is repeated all the way round, mirrored (Square, Flower or Star), so every design comes out balanced. Each design is kept. Creative, calming, and reaching all over the screen. |
-| **Diya Trail** | night indigo | Slide a finger along a dotted path of light from one diya to the next (or tap the dots one by one); each diya catches fire as the light reaches it. A slow, controlled finger movement, like handwriting practice after a stroke. The finger may wander; nothing is ever lost. |
+| **Word Search** | amber | Find hidden everyday words (fruit, food, family, festivals...), shown with a picture of the topic. 5 to 8 words. Vocabulary and scanning; sliding along a word practises a controlled drag. |
+| **Tile Match** | teal | Every picture shows. Tap the two (or, on Hard, three) that are the same; they tick and fade back. Looking and matching, no memory strain. |
+| **Number Hunt** | terracotta | Numbered kites scattered over a blue sky: tap them 1, 2, 3... (12, 20 or 30). Attention and visual search; the hand reaches all over the screen. |
+| **Repeat the Pattern** | purple | Pads light up in turn, each showing its step number (1, 2, 3...); tap them back. A new pattern every round, one step longer. A slip just means "watch again". |
+| **Sort into Baskets** | green | Four pictures on the table. Tap one and then its basket, or slide it in: land / water / sky, hot / cold, fruit / vegetables, kitchen / puja... A wrong basket shakes its head with a big cross and the picture comes back. |
+| **Colouring Book** | rose | Choose a colour, tap part of a picture and the colour spreads out from your finger. Every picture is kept, so the picture page is also the gallery. Finished pictures can go in a photo (see below). |
+| **Harmonium** | wood brown | Big sargam keys with a warm reed sound that lasts as long as the key is held. Play freely, or play along with Happy Birthday, Om Jai Jagdish Hare, Raghupati Raghav or Jana Gana Mana (the short version): the words run along the top, the syllable being sung is lit, and a hand points at its key. "Listen" plays the line first. |
+| **Rangoli Mirror** | blue | Choose a colour and a shape, tap the floor, and the mark is repeated all the way round, mirrored (Square, Flower or Star). Each design is kept, and can go in a photo. |
+| **Diya Trail** | night indigo | Slide a finger along a dotted path of light from one diya to the next; each catches fire as the light reaches it. 4, 6 or 8 diyas; the paths get longer, twistier and narrower, so it takes a steady finger. Tapping the dots one by one also works. |
+| **Making Chai** | cardamom | The steps of a recipe (chai, nimbu pani, khichdi), mixed up: tap the one that comes first, then the next, and each goes into its numbered place. Too early? A little shake; after two tries, a hand points. |
+
+**A photo with the masterpiece:** when a colouring or a rangoli is finished, "Photo with it" turns on
+the tablet's front camera with the picture framed in the corner, counts 3-2-1, and shows the photo
+with **Save** (the tablet's share sheet: to the photo gallery, or straight to the family). The
+camera only ever turns on from that button, and turns off on leaving. The tablet asks permission
+the first time.
+
+The harmonium songs were checked against several published harmonium notations, but none give the
+rhythm, so the note lengths are approximate. Raghupati Raghav's notations disagree in a few places
+(which Ni is komal, and whether it starts with a low Pa): **have someone who sings it play it
+through once** and adjust `SONGS` in `js/harmonium.js` by ear.
 
 ## How it flows
 
-- **Home** is six big tiles, one per game: a picture and a name, nothing else to read. The
+- **Home** is ten big tiles, one per game: a picture and a name, nothing else to read. The
   language (English / हिंदी) sits below them, with a small **Settings** button (sound, playing hand).
 - **One tap plays.** A tile opens its game straight away, at the level played last time (Easy the
   first time). Colouring Book opens on its pictures instead, because choosing one *is* the first move.
@@ -60,6 +72,9 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 
 - **As few taps and words as possible before playing.** A game is one tap from home. Nothing
   on a home tile but its picture and name. The only first-time page has one button.
+- **As few words as possible.** Instructions are two short lines; the status line says what
+  happened in a few words ("Yes! 3 to go.", "Not in Sweets. Try another."). Anything that can be a
+  picture is one.
 - **Pictures first, words second** - for a player who reads little, or not in this language.
   Every action button has a picture as well as a word (▶ start / keep playing, ↻ play again,
   eye = watch, lightbulb = hint, ↶ undo, ✓ finished). The first-time page has a drawn hand that
@@ -128,7 +143,7 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 | --------------------------------- | ------------------------------------------------- |
 | Any wording, in either language   | `js/i18n.js` (a Hindi speaker should review the Hindi) |
 | Add another language              | a block in `js/i18n.js`, word lists in `js/words.js`, and a `SCRIPTS` entry in `js/wordsearch.js` |
-| Word Search topics and words      | `js/words.js` (add family names, places, …)       |
+| Word Search topics and words      | `js/words.js` (each topic has a picture; add family names, places, …) |
 | How many numbers in Number Hunt   | `LEVELS` at the top of `js/numbers.js`            |
 | A game's colour                   | its `[data-game="..."]` line in `css/style.css` (keep the contrast notes above it) |
 | The typeface                      | `@font-face` at the top of `css/style.css`, the files in `fonts/` and in `FILES` in `sw.js` |
@@ -137,7 +152,8 @@ added to the `FILES` list in `sw.js` (the playtest checks this).
 | Sort into Baskets groups and pictures | `GROUPS` (with each basket's `sign`, `scene`, `tint`) and `SETS` in `js/sorting.js`; the scenes are `.so-scene-*` in `css/style.css` |
 | Colouring pictures and palette    | `PICTURES` and `COLOURS` in `js/colouring.js`     |
 | Pattern pads (shape, colour, note), lengths | `PADS` and `LEVELS` in `js/pattern.js`  |
-| Harmonium keys and tunes          | `KEYS` and `TUNES` in `js/harmonium.js` (one line of sargam per phrase) |
+| Harmonium songs                   | `SONGS` in `js/harmonium.js`: one line of words per entry, each part `[notes, Hindi syllable, roman syllable]`; the keys are worked out from the notes |
+| Making Chai recipes               | `RECIPES` in `js/chai.js`                         |
 | Rangoli colours, shapes, symmetries | `COLOURS`, `SHAPES` and `LEVELS` in `js/rangoli.js` |
 | Diya Trail lengths and curves     | `LEVELS` in `js/diya.js`                          |
 | Colours, text sizes, spacing (design tokens) | `:root` at the top of `css/style.css`   |

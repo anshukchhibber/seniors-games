@@ -21,55 +21,60 @@
     fruit: { en: 'Fruit', hi: 'फल', sign: '🍎', scene: 'plain', tint: '#FFE3C2', items: [
       ['🍎', 'Apple', 'सेब'], ['🍌', 'Banana', 'केला'], ['🍇', 'Grapes', 'अंगूर'], ['🍊', 'Orange', 'संतरा'],
       ['🍉', 'Watermelon', 'तरबूज़'], ['🥭', 'Mango', 'आम'], ['🍍', 'Pineapple', 'अनानास'], ['🍐', 'Pear', 'नाशपाती'],
-      ['🍓', 'Strawberry', 'स्ट्रॉबेरी'], ['🍒', 'Cherries', 'चेरी']
+      ['🥥', 'Coconut', 'नारियल'], ['🍋', 'Lemon', 'नींबू']
     ] },
-    veg: { en: 'Vegetables', hi: 'सब्ज़ियाँ', sign: '🥕', scene: 'plain', tint: '#DDF0CC', items: [
-      ['🥕', 'Carrot', 'गाजर'], ['🥔', 'Potato', 'आलू'], ['🍆', 'Aubergine', 'बैंगन'], ['🌽', 'Corn', 'भुट्टा'],
-      ['🥒', 'Cucumber', 'खीरा'], ['🥦', 'Broccoli', 'ब्रोकली'], ['🌶️', 'Chilli', 'मिर्च'],
+    veg: { en: 'Vegetables', hi: 'सब्ज़ी', sign: '🥕', scene: 'plain', tint: '#DDF0CC', items: [
+      ['🥕', 'Carrot', 'गाजर'], ['🥔', 'Potato', 'आलू'], ['🍆', 'Brinjal', 'बैंगन'], ['🌽', 'Corn', 'भुट्टा'],
+      ['🥒', 'Cucumber', 'खीरा'], ['🍅', 'Tomato', 'टमाटर'], ['🌶️', 'Chilli', 'मिर्च'], ['🥦', 'Cauliflower', 'गोभी'],
       ['🧅', 'Onion', 'प्याज़', true], ['🧄', 'Garlic', 'लहसुन', true]
     ] },
-    sweet: { en: 'Sweet things', hi: 'मीठी चीज़ें', sign: '🍰', scene: 'plain', tint: '#FCDDEA', items: [
-      ['🍰', 'Cake', 'केक'], ['🍬', 'Sweet', 'टॉफ़ी'], ['🍫', 'Chocolate', 'चॉकलेट'], ['🍯', 'Honey', 'शहद'],
-      ['🍩', 'Doughnut', 'डोनट'], ['🍪', 'Biscuit', 'बिस्कुट'], ['🍭', 'Lollipop', 'लॉलीपॉप']
+    sweet: { en: 'Sweets', hi: 'मिठाई', sign: '🍰', scene: 'plain', tint: '#FCDDEA', items: [
+      ['🍰', 'Cake', 'केक'], ['🍬', 'Toffee', 'टॉफ़ी'], ['🍫', 'Chocolate', 'चॉकलेट'], ['🍯', 'Honey', 'शहद'],
+      ['🍪', 'Biscuit', 'बिस्कुट'], ['🍦', 'Ice cream', 'आइसक्रीम'], ['🍩', 'Doughnut', 'डोनट']
     ] },
     hot: { en: 'Hot', hi: 'गरम', sign: '🔥', scene: 'hot', items: [
       ['☕', 'Cup of tea', 'चाय'], ['🔥', 'Fire', 'आग'], ['☀️', 'Sun', 'सूरज'], ['🍲', 'Hot soup', 'गरम सूप'],
-      ['🕯️', 'Candle', 'मोमबत्ती'], ['🌋', 'Volcano', 'ज्वालामुखी'], ['🥘', 'Hot curry', 'गरम सब्ज़ी']
+      ['🕯️', 'Candle', 'मोमबत्ती'], ['🥘', 'Hot curry', 'गरम सब्ज़ी'], ['🌶️', 'Chilli', 'मिर्च']
     ] },
     cold: { en: 'Cold', hi: 'ठंडा', sign: '❄️', scene: 'cold', items: [
       ['🧊', 'Ice', 'बर्फ़'], ['🍦', 'Ice cream', 'आइसक्रीम'], ['⛄', 'Snowman', 'बर्फ़ का पुतला'],
-      ['🍧', 'Ice gola', 'बर्फ़ का गोला'], ['🏔️', 'Snowy mountain', 'बर्फ़ीला पहाड़'], ['❄️', 'Snowflake', 'बर्फ़ का फाहा']
+      ['🍧', 'Ice gola', 'बर्फ़ का गोला'], ['🏔️', 'Snowy mountain', 'बर्फ़ीला पहाड़'], ['❄️', 'Snowflake', 'बर्फ़ का फाहा'],
+      ['🥤', 'Cold drink', 'ठंडा शरबत']
     ] },
-    land: { en: 'Live on land', hi: 'ज़मीन पर रहते हैं', sign: '🐄', scene: 'land', items: [
+    land: { en: 'Land', hi: 'ज़मीन', sign: '🐄', scene: 'land', items: [
       ['🐘', 'Elephant', 'हाथी'], ['🐄', 'Cow', 'गाय'], ['🐒', 'Monkey', 'बंदर'], ['🐅', 'Tiger', 'बाघ'],
       ['🐪', 'Camel', 'ऊँट'], ['🐕', 'Dog', 'कुत्ता'], ['🐎', 'Horse', 'घोड़ा'], ['🐐', 'Goat', 'बकरी']
     ] },
-    water: { en: 'Live in water', hi: 'पानी में रहते हैं', sign: '🐟', scene: 'water', items: [
-      ['🐟', 'Fish', 'मछली'], ['🐬', 'Dolphin', 'डॉल्फ़िन'], ['🐙', 'Octopus', 'ऑक्टोपस'], ['🦀', 'Crab', 'केकड़ा'],
-      ['🐳', 'Whale', 'व्हेल'], ['🦈', 'Shark', 'शार्क']
+    water: { en: 'Water', hi: 'पानी', sign: '🐟', scene: 'water', items: [
+      ['🐟', 'Fish', 'मछली'], ['🐬', 'Dolphin', 'डॉल्फ़िन'], ['🦀', 'Crab', 'केकड़ा'], ['🐳', 'Whale', 'व्हेल'],
+      ['🦈', 'Shark', 'शार्क'], ['🦐', 'Prawn', 'झींगा'], ['🐙', 'Octopus', 'ऑक्टोपस']
     ] },
-    sky: { en: 'Fly in the sky', hi: 'आसमान में उड़ते हैं', sign: '🐦', scene: 'sky', items: [
+    sky: { en: 'Sky', hi: 'आसमान', sign: '🐦', scene: 'sky', items: [
       ['🐦', 'Bird', 'चिड़िया'], ['🦋', 'Butterfly', 'तितली'], ['🦅', 'Eagle', 'चील'], ['🦜', 'Parrot', 'तोता'],
-      ['🐝', 'Bee', 'मधुमक्खी'], ['🦉', 'Owl', 'उल्लू']
+      ['🐝', 'Bee', 'मधुमक्खी'], ['🦉', 'Owl', 'उल्लू'], ['✈️', 'Aeroplane', 'हवाई जहाज़']
     ] },
     kitchen: { en: 'Kitchen', hi: 'रसोई', sign: '🍳', scene: 'plain', tint: '#F1E2CF', items: [
-      ['🍳', 'Frying pan', 'फ़्राइंग पैन'], ['🥄', 'Spoon', 'चम्मच'], ['🍽️', 'Plate', 'थाली'], ['🧂', 'Salt', 'नमक'],
-      ['🥣', 'Bowl', 'कटोरी'], ['🍴', 'Fork and knife', 'काँटा-छुरी'], ['☕', 'Cup', 'कप']
+      ['🍳', 'Frying pan', 'कड़ाही'], ['🥄', 'Spoon', 'चम्मच'], ['🍽️', 'Plate', 'थाली'], ['🧂', 'Salt', 'नमक'],
+      ['🥣', 'Bowl', 'कटोरी'], ['🔪', 'Knife', 'चाकू'], ['☕', 'Cup', 'कप']
     ] },
-    garden: { en: 'Garden', hi: 'बगीचा', sign: '🌻', scene: 'garden', items: [
-      ['🌻', 'Sunflower', 'सूरजमुखी'], ['🌹', 'Rose', 'गुलाब'], ['🌳', 'Tree', 'पेड़'], ['🌱', 'Seedling', 'पौधा'],
-      ['🐌', 'Snail', 'घोंघा'], ['🌼', 'Flower', 'फूल'], ['🐝', 'Bee', 'मधुमक्खी']
+    puja: { en: 'Puja', hi: 'पूजा', sign: '🔔', scene: 'plain', tint: '#FFE9B8', items: [
+      ['🔔', 'Bell', 'घंटी'], ['🌺', 'Flower', 'फूल'], ['🕉️', 'Om', 'ॐ'], ['🙏', 'Folded hands', 'प्रणाम'],
+      ['📿', 'Mala', 'माला'], ['🥥', 'Coconut', 'नारियल'], ['🌼', 'Marigold', 'गेंदा'], ['🪔', 'Diya', 'दीया', true],
+      ['🛕', 'Temple', 'मंदिर', true]
     ] },
     clothes: { en: 'Clothes', hi: 'कपड़े', sign: '👕', scene: 'plain', tint: '#E6E0F7', items: [
       ['👕', 'Shirt', 'कमीज़'], ['👗', 'Dress', 'फ़्रॉक'], ['👟', 'Shoe', 'जूता'], ['🧣', 'Scarf', 'मफ़लर'],
-      ['🧦', 'Socks', 'मोज़े'], ['👒', 'Hat', 'टोपी'], ['🧤', 'Gloves', 'दस्ताने']
+      ['🧦', 'Socks', 'मोज़े'], ['👒', 'Hat', 'टोपी'], ['🧤', 'Gloves', 'दस्ताने'], ['🧥', 'Coat', 'कोट'],
+      ['🥻', 'Sari', 'साड़ी', true]
     ] }
   };
 
-  // Which groups are sorted against each other. Nothing in a set belongs to two of its groups.
+  // Which groups are sorted against each other, per level: the clearest pairs first. Nothing in a
+  // set belongs to two of its groups.
   const SETS = {
-    2: [['fruit', 'veg'], ['hot', 'cold'], ['land', 'water'], ['kitchen', 'garden']],
-    3: [['fruit', 'veg', 'sweet'], ['land', 'water', 'sky'], ['kitchen', 'garden', 'clothes']]
+    easy: [['land', 'water'], ['hot', 'cold'], ['clothes', 'fruit'], ['land', 'sky']],
+    medium: [['fruit', 'veg'], ['kitchen', 'puja'], ['water', 'sky'], ['clothes', 'kitchen']],
+    hard: [['fruit', 'veg', 'sweet'], ['land', 'water', 'sky'], ['kitchen', 'puja', 'clothes']]
   };
 
   const LEVELS = {
@@ -128,7 +133,7 @@
     }
 
     function deal() {
-      const sets = SETS[level.baskets].filter(function (s) { return s.join() !== lastSet; });
+      const sets = SETS[levelKey].filter(function (s) { return s.join() !== lastSet; });
       groups = sets[SG.rand(sets.length)];
       lastSet = groups.join();
       // Deal from each basket's pile in turn, so the baskets get about the same number each (and if
@@ -169,7 +174,10 @@
         if (group.tint) button.style.setProperty('--scene', group.tint);
         const basket = { key: key, button: button, contents: contents, count: 0 };
         SG.onTap(button, function () { tapBasket(basket); });
-        button.addEventListener('animationend', function () { button.classList.remove('so-wobble'); });
+        button.addEventListener('animationend', function (e) {
+          if (e.animationName === 'so-wobble') button.classList.remove('so-wobble');
+          if (e.animationName === 'so-cross') button.classList.remove('so-nope'); // the cross has come and gone
+        });
         return basket;
       });
       const row = el('div', { class: 'so-baskets', role: 'group', 'aria-label': t('so.baskets') },
@@ -210,6 +218,7 @@
       node.addEventListener('pointermove', onMove);
       node.addEventListener('pointerup', onUp);
       node.addEventListener('pointercancel', onCancel);
+      node.addEventListener('animationend', function () { node.classList.remove('so-wobble-card'); });
       node.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
@@ -233,7 +242,7 @@
     }
 
     function clearHints() {
-      baskets.forEach(function (b) { b.button.classList.remove('so-hint'); });
+      baskets.forEach(function (b) { b.button.classList.remove('so-hint', 'so-nope'); });
     }
 
     // Tapping a picture picks it up: it lifts and gets a thick outline, and the status line
@@ -266,8 +275,18 @@
       const item = card.entry.item;
       if (basket.key !== card.entry.group) {
         card.tries++;
-        moveCard(card, 0, 0, 0, true); // it simply comes back
-        SG.sound.tap();
+        moveCard(card, 0, 0, 0, true); // it simply comes back...
+        SG.sound.nope();
+        // ...and it is plain to see: the basket shakes its head with a big cross on it, and the
+        // picture gives a little wobble once it is back in its place.
+        if (!SG.reducedMotion()) {
+          basket.button.classList.remove('so-nope');
+          basket.button.getBoundingClientRect();
+          basket.button.classList.add('so-nope');
+          timers.later(function () { card.el.classList.add('so-wobble-card'); }, MOVE_MS);
+        } else {
+          basket.button.classList.add('so-nope');
+        }
         if (card.tries === 1 && baskets.length > 1) {
           statusEl.textContent = t('so.wrong', name(item), groupName(basket.key));
         } else {

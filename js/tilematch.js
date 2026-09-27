@@ -1,21 +1,22 @@
-// Tile Match: turn over two tiles at a time and find the matching pairs.
-// No timer of any kind. Two tiles that do not match simply stay showing until
-// the player taps the next tile, and the status line always says in words what
-// just happened and what to do next.
+// Tile Match: every picture shows. Find the ones that are the same - two of a kind, or on the
+// Hard level three of a kind - and tap them. Looking and matching, with no memory strain.
+//
+// Nothing is wrong: tapping two that differ just gives them a little shake and lets them go, and
+// the status line always says in words what just happened and what to do next.
 (function (SG) {
   'use strict';
 
   const el = SG.el;
 
   const LEVELS = {
-    easy: { pairs: 4 },
-    medium: { pairs: 6 },
-    hard: { pairs: 8 }
+    easy: { group: 2, sets: 4 },
+    medium: { group: 2, sets: 6 },
+    hard: { group: 3, sets: 4 }
   };
 
   // Each picture: { pic, en, hi, group?, newer? }.
-  //   group - with low vision a picture is matched by its colour and outline, so two from the same
-  //           look-alike group are never dealt into one game.
+  //   group - look-alikes (the same colour and outline) are never dealt into one game, so "the
+  //           same" is always obvious.
   //   newer - an emoji that older tablets cannot draw; it is quietly left out where it would show
   //           as an empty box. (Every picture is also named in the status line.)
   const CLASSIC = [
@@ -53,8 +54,8 @@
   const SETS = { en: CLASSIC, hi: INDIAN };
   const drawable = {}; // per picture set, worked out once
 
-  const DOUBLE_TAP_MS = 700; // a second tap sooner than this is treated as an accident
-  const WIN_PAUSE_MS = 2200;
+  const DOUBLE_TAP_MS = 600; // a second tap on the same tile sooner than this is an accident
+  const WIN_PAUSE_MS = 2000;
 
   function pickSymbols(count) {
     const lang = SETS[SG.lang] ? SG.lang : 'en';
@@ -72,49 +73,34 @@
   function mount(stage, levelKey) {
     const level = LEVELS[levelKey];
     const t = SG.t;
-
-    let tiles, first, pending, pendingSince, pairsFound, turns, done;
     const timers = SG.timers();
+
+    let tiles, picked, found, done, lastTap;
     let layoutEl, wrap, board, statusEl;
 
     function describe(tile) {
-      const where = t('tm.tile', tile.index + 1);
-      if (tile.state === 'down') return where + ', ' + t('tm.down');
-      return where + ', ' + tile.name + (tile.state === 'matched' ? ', ' + t('tm.matched') : '');
-    }
-
-    function setState(tile, state) {
-      tile.state = state;
-      tile.button.classList.toggle('up', state !== 'down');
-      tile.button.classList.toggle('matched', state === 'matched');
-      tile.button.setAttribute('aria-label', describe(tile));
-      if (state === 'matched') tile.button.setAttribute('aria-disabled', 'true');
+      return tile.name + (tile.matched ? ', ' + t('tm.matched') : '');
     }
 
     function render() {
       stage.textContent = '';
       // Always two lines tall, so a longer message can never push the tiles down.
       statusEl = el('p', { class: 'status tm-status', role: 'status' });
-      board = el('div', { class: 'tm-board' });
+      board = el('div', { class: 'tm-board', role: 'group', 'aria-label': t('tm.board') });
 
       tiles.forEach(function (tile) {
-        // A real card: a patterned back and a picture face, turned over in 3D (the tile's own box
-        // never changes size, so nothing around it moves).
-        tile.button = el('button', { class: 'tm-tile pressable', type: 'button' }, [
-          el('span', { class: 'tm-card', 'aria-hidden': 'true' }, [
-            el('span', { class: 'tm-back' }),
-            el('span', { class: 'tm-face', text: tile.symbol })
-          ])
+        tile.button = el('button', { class: 'tm-tile pressable', type: 'button', 'aria-label': describe(tile) }, [
+          el('span', { class: 'tm-face', 'aria-hidden': 'true', text: tile.symbol })
         ]);
-        SG.onTap(tile.button, function () { turnOver(tile); });
-        setState(tile, 'down');
+        SG.onTap(tile.button, function () { tap(tile); });
+        tile.button.addEventListener('animationend', function () { tile.button.classList.remove('tm-nope'); });
         board.appendChild(tile.button);
       });
 
       wrap = el('div', { class: 'tm-board-wrap' }, [board]);
       layoutEl = el('div', { class: 'tm-layout' }, [statusEl, wrap]);
       stage.appendChild(layoutEl);
-      statusEl.textContent = t('tm.start', level.pairs);
+      statusEl.textContent = t(level.group === 3 ? 'tm.start3' : 'tm.start');
     }
 
     // Pick the rows/columns split that gives the biggest tiles for this screen, then sit the
@@ -122,7 +108,7 @@
     function layout() {
       if (!board) return;
       layoutEl.style.minHeight = '';
-      const top = wrap.getBoundingClientRect().top + window.pageYOffset;
+      const top = wrap.getBoundingClientRect().top;
       const availW = wrap.clientWidth;
       const availH = SG.bottom() - top - 10;
       const gap = availW < 500 ? 10 : 16;
@@ -133,58 +119,70 @@
       board.style.setProperty('--tile', size + 'px');
       board.style.setProperty('--gap', gap + 'px');
 
-      const layoutTop = layoutEl.getBoundingClientRect().top + window.pageYOffset;
+      const layoutTop = layoutEl.getBoundingClientRect().top;
       layoutEl.style.minHeight = Math.max(0, SG.bottom() - layoutTop - 4) + 'px';
     }
 
-    function hidePending() {
-      if (!pending) return;
-      pending.forEach(function (tile) { setState(tile, 'down'); });
-      pending = null;
+    function setPicked(tile, on) {
+      tile.button.classList.toggle('picked', on);
+      tile.button.setAttribute('aria-pressed', String(on));
     }
 
-    function turnOver(tile) {
-      if (done) return;
-      // Taps on a tile that is already showing are ignored, so a double tap does no harm.
-      // The exception: once a mismatch has been on show for a moment, tapping one of
-      // those two tiles picks it again as the start of the next turn.
-      const repick = pending && pending.indexOf(tile) !== -1 && Date.now() - pendingSince > DOUBLE_TAP_MS;
-      if (tile.state !== 'down' && !repick) return;
-      hidePending();
-      setState(tile, 'up');
+    function tap(tile) {
+      if (done || tile.matched) return;
+      const now = Date.now();
+      if (picked.indexOf(tile) !== -1) {
+        // Tapping a chosen tile again lets it go (unless it was a quick accidental double tap)
+        if (now - lastTap < DOUBLE_TAP_MS) return;
+        picked.splice(picked.indexOf(tile), 1);
+        setPicked(tile, false);
+        lastTap = now;
+        statusEl.textContent = t(level.group === 3 ? 'tm.start3' : 'tm.start');
+        return;
+      }
+      lastTap = now;
 
-      if (!first) {
-        first = tile;
-        statusEl.textContent = t('tm.first', tile.name);
+      if (picked.length && picked[0].symbol !== tile.symbol) {
+        // Not the same: a little shake, and they are let go. Nothing is lost.
+        [picked[0], tile].concat(picked.slice(1)).forEach(function (p) {
+          setPicked(p, false);
+          if (!SG.reducedMotion()) p.button.classList.add('tm-nope');
+        });
+        picked = [];
         SG.sound.tap();
+        statusEl.textContent = t('tm.notSame');
         return;
       }
 
-      const other = first;
-      first = null;
-      turns++;
-
-      if (other.symbol !== tile.symbol) {
-        // The two tiles stay showing for as long as the player likes; the next tap turns them back.
-        pending = [other, tile];
-        pendingSince = Date.now();
-        statusEl.textContent = t('tm.mismatch', other.name, tile.name);
+      picked.push(tile);
+      setPicked(tile, true);
+      if (picked.length < level.group) {
         SG.sound.tap();
+        statusEl.textContent = picked.length === 1
+          ? t(level.group === 3 ? 'tm.first3' : 'tm.first', tile.name)
+          : t('tm.oneMore', tile.name);
         return;
       }
 
-      setState(other, 'matched');
-      setState(tile, 'matched');
-      pairsFound++;
-      const left = level.pairs - pairsFound;
+      // A whole set: ticked, settled back, and out of the way of the rest
+      picked.forEach(function (p) {
+        p.matched = true;
+        setPicked(p, false);
+        p.button.classList.add('matched');
+        p.button.setAttribute('aria-disabled', 'true');
+        p.button.setAttribute('aria-label', describe(p));
+      });
+      picked = [];
+      found++;
+      const left = level.sets - found;
       if (left === 0) {
         done = true;
-        statusEl.textContent = t('tm.matchLast', tile.name);
+        statusEl.textContent = t('tm.matchLast');
         SG.sound.win();
         timers.later(showWin, WIN_PAUSE_MS);
       } else {
         statusEl.textContent = t('tm.match', tile.name, left);
-        SG.sound.good(pairsFound);
+        SG.sound.good(found);
       }
     }
 
@@ -197,10 +195,7 @@
       });
       const trophies = el('div', { class: 'tm-trophies panel-trophies', 'aria-hidden': 'true' },
         pictures.map(function (tile) { return el('span', { text: tile.symbol }); }));
-      const panel = SG.winPanel(
-        t('tm.win', level.pairs, turns),
-        trophies, newGame, '#/tilematch/levels'
-      );
+      const panel = SG.winPanel(t('tm.win', level.sets), trophies, newGame, '#/tilematch/levels');
       stage.textContent = '';
       board = null;
       stage.appendChild(panel);
@@ -209,15 +204,16 @@
 
     function newGame() {
       timers.clear();
-      const chosen = pickSymbols(level.pairs);
-      tiles = SG.shuffle(chosen.concat(chosen)).map(function (entry, index) {
-        return { index: index, symbol: entry.pic, name: entry[SG.lang] || entry.en, state: 'down', button: null };
+      const chosen = pickSymbols(level.sets);
+      let all = [];
+      for (let i = 0; i < level.group; i++) all = all.concat(chosen);
+      tiles = SG.shuffle(all).map(function (entry, index) {
+        return { index: index, symbol: entry.pic, name: entry[SG.lang] || entry.en, matched: false, button: null };
       });
-      first = null;
-      pending = null;
-      pairsFound = 0;
-      turns = 0;
+      picked = [];
+      found = 0;
       done = false;
+      lastTap = 0;
       render();
       layout();
     }
@@ -230,7 +226,7 @@
       resize: layout,
       // Shown on the level page while this game is under way, above its "Keep Playing" button.
       progress: function () {
-        return done || !pairsFound ? null : t('tm.progress', pairsFound, level.pairs);
+        return done || !found ? null : t('tm.progress', found, level.sets);
       },
       destroy: function () {
         timers.clear();
@@ -239,45 +235,29 @@
       // for the playtest: jump to the finish screen
       finish: function () {
         timers.clear();
-        turns = level.pairs + 2;
         showWin();
       }
     };
   }
 
-  // Three cards: one face down, and a matching pair turned up with a tick.
-  // `opts.demo`: a hand taps the card that is face down.
+  // Six pictures face up, two of them the same and ticked.
+  // `opts.demo`: a hand taps the second sunflower.
   function illustration(opts) {
     const svg = SG.svg;
-    function flower(cx, cy) {
-      const parts = [];
-      for (let i = 0; i < 8; i++) {
-        const a = i * Math.PI / 4;
-        parts.push(svg('circle', { cx: cx + 7.5 * Math.cos(a), cy: cy + 7.5 * Math.sin(a), r: 4.6, fill: '#FFC83D', stroke: '#946C00', 'stroke-width': 1 }));
+    const pics = [['🌻', true], ['☕', false], ['🐘', false], ['🍌', false], ['🌻', true], ['🚗', false]];
+    const parts = [];
+    pics.forEach(function (p, i) {
+      const x = 8 + (i % 3) * 36, y = 6 + Math.floor(i / 3) * 40;
+      parts.push(svg('rect', { x: x, y: y + 3, width: 32, height: 34, rx: 7, class: 'fill-deep' }));
+      parts.push(svg('rect', { x: x, y: y, width: 32, height: 34, rx: 7, fill: p[1] ? '#D7EFDD' : '#FFFFFF', stroke: p[1] ? '#1F6B3F' : 'none', 'stroke-width': 2.5 }));
+      parts.push(svg('text', { x: x + 16, y: y + 18, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 20, style: 'font-family: var(--font-emoji)' }, [document.createTextNode(p[0])]));
+      if (p[1]) {
+        parts.push(svg('circle', { cx: x + 29, cy: y + 3, r: 6.5, fill: '#1F6B3F', stroke: '#FFFFFF', 'stroke-width': 1.5 }));
+        parts.push(svg('path', { d: 'M' + (x + 26) + ' ' + (y + 3.3) + 'l2.2 2.2 4-4.4', fill: 'none', stroke: '#FFFFFF', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
       }
-      parts.push(svg('circle', { cx: cx, cy: cy, r: 5, fill: '#8D5524', stroke: '#4E2C0E', 'stroke-width': 1 }));
-      return parts;
-    }
-    function card(x, y, angle, up) {
-      const w = 36, h = 50, cx = x + w / 2, cy = y + h / 2;
-      const parts = [svg('rect', { x: x, y: y + 3, width: w, height: h, rx: 8, class: 'fill-deep' })];
-      if (up) {
-        parts.push(svg('rect', { x: x, y: y, width: w, height: h, rx: 8, fill: '#FFFFFF', class: 'stroke-deep', 'stroke-width': 3 }));
-        parts.push.apply(parts, flower(cx, cy));
-      } else {
-        parts.push(svg('rect', { x: x, y: y, width: w, height: h, rx: 8, class: 'fill-accent stroke-deep', 'stroke-width': 3 }));
-        parts.push(svg('rect', { x: x + 5, y: y + 5, width: w - 10, height: h - 10, rx: 5, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.75, 'stroke-width': 1.8 }));
-        parts.push(svg('circle', { cx: cx, cy: cy, r: 5.5, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.85, 'stroke-width': 1.8 }));
-      }
-      return svg('g', { transform: 'rotate(' + angle + ' ' + cx + ' ' + cy + ')' }, parts);
-    }
-    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, [
-      card(5, 26, -9, false),
-      card(42, 12, 0, true),
-      card(79, 26, 9, true),
-      svg('circle', { cx: 110, cy: 25, r: 9, fill: '#1F6B3F', stroke: '#FFFFFF', 'stroke-width': 2 }),
-      svg('path', { d: 'M105.5 25.5l3 3 6-6.5', fill: 'none', stroke: '#FFFFFF', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
-    ].concat(opts && opts.demo ? [SG.demoHand(24, 50, 'tap')] : []));
+    });
+    if (opts && opts.demo) parts.push(SG.demoHand(28, 64, 'tap'));
+    return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 
   SG.registerGame({
@@ -286,7 +266,7 @@
     levels: LEVELS,
     mount: mount,
     illustration: illustration,
-    preview: function (levelKey) { return SG.squares(LEVELS[levelKey].pairs * 2, 'level-art-tiles'); },
-    detail: function (levelKey) { return SG.t('tm.level', LEVELS[levelKey].pairs * 2, LEVELS[levelKey].pairs); }
+    preview: function (levelKey) { return SG.squares(LEVELS[levelKey].sets * LEVELS[levelKey].group, 'level-art-tiles'); },
+    detail: function (levelKey) { return SG.t('tm.level.' + levelKey); }
   });
 })(window.SG);

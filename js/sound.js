@@ -69,6 +69,11 @@
     pad: function (freq) {
       note(freq, 0, 0.5, 0.14);
     },
+    // Not the right place: two soft, low notes going down - clear, but never harsh.
+    nope: function () {
+      note(330, 0, 0.18, 0.09);
+      note(247, 0.14, 0.3, 0.09);
+    },
     // A harmonium reed: starts at once and sounds until the returned function is called (the key
     // is let go), then fades. Two slightly different reeds and a soft one an octave down give the
     // harmonium's warm, buzzy sound.

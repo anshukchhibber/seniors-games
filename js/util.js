@@ -47,6 +47,7 @@ window.SG = window.SG || {};
     check: ['M5 12.5l4.5 4.5L19 7.5'],
     back: ['M10 5.5L3.5 12l6.5 6.5', 'M4 12h16.5'],
     sound: ['M4 9.5h3.5L12 5.5v13l-4.5-4H4z', 'M15.5 9a4 4 0 0 1 0 6', 'M18.2 6.3a8 8 0 0 1 0 11.4'],
+    camera: ['M3.5 8h3.5l2-2.5h6L17 8h3.5v11h-17z', 'M12 10a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 1 1 0-6.8z'],
     help: ['M12 3a9 9 0 1 1 0 18 9 9 0 1 1 0-18z', 'M9.4 9.6a2.7 2.7 0 1 1 3.9 2.4c-.8.4-1.3 1-1.3 1.9v.5', 'M12 17.3v.2']
   };
 
@@ -242,7 +243,8 @@ window.SG = window.SG || {};
       const rows = Math.ceil(count / cols);
       const cw = (w - gap * (cols - 1)) / cols, ch = (h - gap * (rows - 1)) / rows;
       if (cols > 1 && cw < (minWidth || 0)) break;
-      const score = Math.min(cw / aspect, ch) * Math.sqrt(count / (cols * rows));
+      const fill = count / (cols * rows); // empty places cost more than the room they waste: rows come out even
+      const score = Math.min(cw / aspect, ch) * fill * fill;
       if (!best || score > best.score + 0.5) best = { cols: cols, rows: rows, score: score };
     }
     return best;
@@ -339,13 +341,20 @@ window.SG = window.SG || {};
     options = options || {};
     const again = SG.iconButton('btn btn-lg', options.againIcon || 'again', options.again || SG.t('playAgain'));
     SG.onTap(again, onAgain);
+    const actions = [again];
+    // Something the player made: a photo with it
+    if (options.photo) {
+      const photo = SG.iconButton('btn btn-lg win-photo', 'camera', SG.t('photo.open'));
+      SG.onTap(photo, options.photo);
+      actions.push(photo);
+    }
     const wrap = SG.panel({
       kind: 'win',
       art: options.art || SG.star(),
       title: options.title || SG.t('wellDone'),
       text: message,
       extra: trophies,
-      actions: [again, SG.link({ class: 'btn btn-secondary', href: levelsHref }, [SG.icon(options.backIcon || 'levels'), SG.el('span', { class: 'btn-text', text: options.back || SG.t('changeLevel') })])]
+      actions: actions.concat([SG.link({ class: 'btn btn-secondary', href: levelsHref }, [SG.icon(options.backIcon || 'levels'), SG.el('span', { class: 'btn-text', text: options.back || SG.t('changeLevel') })])])
     });
     if (!SG.reducedMotion()) wrap.appendChild(SG.confetti());
     // Once it is on the page: if it is too tall for the screen, take away extras step by step

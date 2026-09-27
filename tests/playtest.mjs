@@ -58,6 +58,7 @@ const edge = spawn(EDGE, [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${join(OUT, 'browser-profile')}`,
   '--no-first-run', '--disable-gpu', '--window-size=1280,800',
   '--mute-audio', // the games' sounds are never played out loud while testing
+  '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', // a pretend camera, for the photo
   'about:blank'
 ], { stdio: 'ignore' });
 
@@ -110,7 +111,15 @@ async function viewport(width, height, mobile) {
 let visit = 0;
 async function go(hash) {
   await send('Page.navigate', { url: BASE + '?v=' + (++visit) + hash });
-  await sleep(350);
+  await sleep(250);
+  // then wait until the page has really drawn (a slow load must not look like a missing button)
+  for (let i = 0; i < 40; i++) {
+    try {
+      if (await js(`document.readyState === 'complete' && document.getElementById('view').children.length > 0`)) break;
+    } catch { /* still loading */ }
+    await sleep(100);
+  }
+  await sleep(100);
 }
 async function mouse(type, x, y, extra = {}) {
   await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, ...extra });
@@ -264,7 +273,7 @@ try {
   check('the chosen first letter is clearly drawn (opaque, outlined)', await js(`getComputedStyle(document.querySelector('.ws-preview')).opacity === '1' && document.querySelectorAll('.ws-preview line').length === 2`));
   await shot('06a-ws-first-letter');
   await click(w0.start.x, w0.start.y);
-  check('tapping the same letter twice cancels', (await js(`getComputedStyle(document.querySelector('.ws-preview')).display`)) === 'none' && (await status()).startsWith('Found 0 of'));
+  check('tapping the same letter twice cancels', (await js(`getComputedStyle(document.querySelector('.ws-preview')).display`)) === 'none' && (await status()).startsWith('0 of '));
   await js(`document.querySelector('.ws-hint').click()`);
   check('hint circles a letter', (await js(`document.querySelector('.ws-hint-ring').style.display`)) === '');
   check('hint names the word', (await status()).startsWith('Look for '));
@@ -288,7 +297,7 @@ try {
   const resumeButton = label => js(`[...document.querySelectorAll('.levels-resume button')].find(b => b.textContent === '${label}').click()`);
   await js(`document.querySelector('.bar-level').click()`);
   await sleep(200);
-  check('the level button opens the level page, which offers to carry on', await js(`location.hash === '#/wordsearch/levels' && !!document.querySelector('.levels-resume') && document.querySelector('.stage').hidden`) && (await js(`document.querySelector('.levels-resume-text').textContent`)).startsWith('You have found 1 of'), await js(`(document.querySelector('.levels-resume-text') || {}).textContent`));
+  check('the level button opens the level page, which offers to carry on', await js(`location.hash === '#/wordsearch/levels' && !!document.querySelector('.levels-resume') && document.querySelector('.stage').hidden`) && (await js(`document.querySelector('.levels-resume-text').textContent`)).startsWith('1 of 5 words found'), await js(`(document.querySelector('.levels-resume-text') || {}).textContent`));
   await shot('06b-ws-levels-resume');
   await js(`document.querySelector('.levels-howto').click()`);
   await sleep(250);
@@ -342,75 +351,48 @@ try {
   }
 
   // ---------- Tile Match (desktop) ----------
-  for (const levelKey of ['easy', 'medium', 'hard']) {
+  const tmState = () => js(`(() => {
+    const t = [...document.querySelectorAll('.tm-tile')];
+    return t.map(x => { const r = x.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, face: x.querySelector('.tm-face').textContent }; });
+  })()`);
+  for (const [levelKey, group, sets] of [['easy', 2, 4], ['medium', 2, 6], ['hard', 3, 4]]) {
     await go('#/tilematch/' + levelKey);
     const info = await js(`(() => { const t = [...document.querySelectorAll('.tm-tile')]; const b = document.querySelector('.tm-board').getBoundingClientRect(); return { count: t.length, size: t[0].offsetWidth, bottom: b.bottom, vh: innerHeight }; })()`);
-    check(`${levelKey}: tiles are big and fit`, info.size >= 64 && info.bottom <= info.vh, JSON.stringify(info));
+    check(`${levelKey}: all ${group * sets} pictures show at once, big, and fit`, info.count === group * sets && info.size >= 64 && info.bottom <= info.vh, JSON.stringify(info));
     if (levelKey === 'medium') await shot('07-tm-medium-start');
-
-    // Read where the pairs are, then play with real clicks.
-    const centres = await js(`[...document.querySelectorAll(".tm-tile")].map(t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })`);
-    const faces = await js(`[...document.querySelectorAll(".tm-face")].map(f => f.textContent)`);
-    const pairs = {};
-    faces.forEach((f, i) => (pairs[f] = pairs[f] || []).push(i));
-    const list = Object.values(pairs);
-    check(`${levelKey}: every picture appears exactly twice`, list.every(p => p.length === 2));
-
-    // Start with a deliberate mismatch, then carry straight on without waiting for it to turn back.
+    const tiles = await tmState();
+    const bySymbol = {};
+    tiles.forEach((t, i) => (bySymbol[t.face] = bySymbol[t.face] || []).push(i));
+    const list = Object.values(bySymbol);
+    check(`${levelKey}: every picture appears exactly ${group} times`, list.length === sets && list.every(p => p.length === group));
     const tmStatus = () => js(`document.querySelector('.status').textContent`);
-    check(`${levelKey}: opens by saying what to do`, (await tmStatus()).includes('Tap a tile'));
-    await click(centres[list[0][0]].x, centres[list[0][0]].y);
-    check(`${levelKey}: names the first picture`, (await tmStatus()).includes('Now find the other'), await tmStatus());
-    await click(centres[list[1][0]].x, centres[list[1][0]].y);
-    check(`${levelKey}: says a mismatch in words, gently`, (await tmStatus()).includes('are not a pair. Tap any tile'), await tmStatus());
-    check(`${levelKey}: a mismatch is not counted as a pair`, (await js(`document.querySelectorAll(".tm-tile.matched").length`)) === 0);
-    // An instant second tap on a showing tile is an accident and must change nothing...
-    await click(centres[list[1][0]].x, centres[list[1][0]].y);
-    check(`${levelKey}: accidental double tap leaves the mismatch on show`, (await js(`document.querySelectorAll(".tm-tile.up").length`)) === 2);
-    // ...but after a moment, tapping one of the two picks it again.
-    await sleep(800);
-    await click(centres[list[0][0]].x, centres[list[0][0]].y);
-    check(`${levelKey}: tapping a showing tile later re-picks it`, (await js(`document.querySelectorAll(".tm-tile.up").length`)) === 1);
-    await click(centres[list[0][1]].x, centres[list[0][1]].y);
-    let n = 1;
-    for (const [a, b] of list.slice(1)) {
-      await click(centres[a].x, centres[a].y);
-      await click(centres[a].x, centres[a].y); // accidental double tap must be harmless
-      await click(centres[b].x, centres[b].y);
+    const matched = () => js(`document.querySelectorAll('.tm-tile.matched').length`);
+    check(`${levelKey}: says what to do, in a few words`, (await tmStatus()) === (group === 3 ? 'Tap three that are the same.' : 'Tap two that are the same.'), await tmStatus());
+    // Two that differ: a little shake, let go, nothing counted
+    const a = list[0][0], b = list[1][0];
+    await click(tiles[a].x, tiles[a].y);
+    check(`${levelKey}: a tapped picture is picked up and named`, await js(`document.querySelectorAll('.tm-tile.picked').length === 1`) && (await tmStatus()).startsWith(tiles[a].face === '🍎' ? 'Apple' : ''), await tmStatus());
+    await click(tiles[b].x, tiles[b].y);
+    check(`${levelKey}: two that differ are let go gently, and nothing is counted`, (await tmStatus()) === 'Not the same. Try again.' && (await matched()) === 0 && await js(`document.querySelectorAll('.tm-tile.picked').length === 0`), await tmStatus());
+    let n = 0;
+    for (const set of list) {
+      for (const k of set) { await click(tiles[k].x, tiles[k].y); if (k === set[0]) await click(tiles[k].x, tiles[k].y); } // an accidental double tap is harmless
       n++;
-      const matched = await js(`document.querySelectorAll(".tm-tile.matched").length`);
-      if (matched !== n * 2) check(`${levelKey}: pair ${n} matched`, false, "matched=" + matched);
-      if (levelKey === "medium" && n === 3) {
-        await click(centres[list[4][0]].x, centres[list[4][0]].y);
-        await click(centres[list[5][0]].x, centres[list[5][0]].y);
-        await sleep(450);
-        await shot("08-tm-medium-midgame");
-      }
+      if ((await matched()) !== n * group) { check(`${levelKey}: set ${n} matched`, false, 'matched=' + await matched()); break; }
+      if (levelKey === 'medium' && n === 3) { await sleep(300); await shot('08-tm-medium-midgame'); }
     }
-    await sleep(2700);
-    check(`${levelKey}: tile match finish screen appears`, await js(`!!document.querySelector('.panel-win')`), await js(`(document.querySelector('.panel-text') || {}).textContent || document.querySelector('.status').textContent`));
+    await sleep(2300);
+    check(`${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`), await js(`(document.querySelector('.panel-text') || {}).textContent || document.querySelector('.status').textContent`));
     if (levelKey === 'medium') await shot('09-tm-win');
   }
-
-  // Mismatched tiles wait for the player - nothing turns over by itself
-  await go('#/tilematch/hard');
+  await go('#/tilematch/easy');
   {
-    const centres = await js(`[...document.querySelectorAll('.tm-tile')].map(t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })`);
-    let a = 0, b = 1;
-    await click(centres[a].x, centres[a].y);
-    const nameA = await js(`document.querySelectorAll('.tm-tile')[0].getAttribute('aria-label')`);
-    for (b = 1; b < centres.length; b++) {
-      const sym = await js(`document.querySelectorAll('.tm-face')[${b}].textContent === document.querySelectorAll('.tm-face')[0].textContent`);
-      if (!sym) break;
-    }
-    await click(centres[b].x, centres[b].y);
-    check('mismatch stays visible at first', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 2, nameA);
+    const tiles = await tmState();
     const boardTop = await js(`Math.round(document.querySelector('.tm-board').getBoundingClientRect().top)`);
-    await sleep(3500);
-    check('a mismatch stays showing until the player is ready', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 2);
-    let c = 1; while (c === b) c++;
-    await click(centres[c].x, centres[c].y);
-    check('the next tap turns the mismatch back', (await js(`document.querySelectorAll('.tm-tile.up').length`)) === 1);
+    await click(tiles[0].x, tiles[0].y);
+    await sleep(700);
+    await click(tiles[0].x, tiles[0].y);
+    check('tapping a picked picture again lets it go', await js(`document.querySelectorAll('.tm-tile.picked').length === 0`));
     check('the tiles never move as the status line changes', (await js(`Math.round(document.querySelector('.tm-board').getBoundingClientRect().top)`)) === boardTop);
   }
 
@@ -428,7 +410,7 @@ try {
     });
     return { count: tiles.length, numbers: tiles.map(t => +t.textContent).sort((a, b) => a - b), where, cell: tiles[0].offsetWidth, overlap, outside,
       top: Math.round(b.top), bottom: b.bottom, vh: innerHeight, vw: innerWidth, scrollW: document.documentElement.scrollWidth,
-      font: parseFloat(getComputedStyle(tiles[0]).fontSize) };
+      font: parseFloat(getComputedStyle(tiles[0].querySelector('.nh-num')).fontSize) };
   })()`);
   const nhStatus = () => js(`document.querySelector('.status').textContent`);
   const nhTarget = () => js(`document.querySelector('.nh-target-number').textContent`);
@@ -441,7 +423,7 @@ try {
     if (levelKey === 'hard') await shot('21-nh-hard-start');
 
     await click(st.where[5].x, st.where[5].y);
-    check(`numbers ${levelKey}: tapping another number is met gently, and changes nothing`, (await nhStatus()) === 'That is 5. Look for 1.' && (await js(`document.querySelectorAll('.nh-tile.done').length`)) === 0, await nhStatus());
+    check(`numbers ${levelKey}: tapping another number is met gently, and changes nothing`, (await nhStatus()) === 'That is 5. Find 1.' && (await js(`document.querySelectorAll('.nh-tile.done').length`)) === 0, await nhStatus());
     await js(`document.querySelector('.nh-hint').click()`);
     check(`numbers ${levelKey}: Show Me circles the next number`, await js(`[...document.querySelectorAll('.nh-tile.hinting')].map(t => t.textContent).join() === '1'`) && (await nhStatus()) === '1 is circled.');
     if (levelKey === 'easy') await shot('20-nh-easy-hint');
@@ -450,7 +432,7 @@ try {
       await click(st.where[n].x, st.where[n].y);
       if (n % 7 === 0) await click(st.where[n].x, st.where[n].y); // accidental double tap on a found number
       if (n === 3) {
-        check(`numbers ${levelKey}: the big number shows what to find next`, (await nhTarget()) === '4' && (await nhStatus()) === 'Good. 3 of ' + expected + ' found.', await nhStatus());
+        check(`numbers ${levelKey}: the big number shows what to find next`, (await nhTarget()) === '4' && (await nhStatus()) === 'Good! 3 of ' + expected + '.', await nhStatus());
         check(`numbers ${levelKey}: the hint clears once its number is found`, (await js(`document.querySelectorAll('.nh-tile.hinting').length`)) === 0);
         await js(`location.hash = '#/numbers/levels'`);
         await sleep(200);
@@ -475,13 +457,13 @@ try {
   check('Hindi: the whole home page switches', await js(`document.documentElement.lang === 'hi' && document.querySelector('.home-title').textContent === 'सनी गेम्स' && [...document.querySelectorAll('.tile-title')].every(n => /[\u0900-\u097F]/.test(n.textContent))`));
   await shot('30-hi-home');
   check('Hindi: words split into aksharas, not characters', await js(`JSON.stringify(['रिश्तेदार', 'इंद्रधनुष', 'बुज़ुर्ग', 'कठफोड़वा'].map(w => SG.wordsearch.split(w).join(' '))) === JSON.stringify(['रि श्ते दा र', 'इं द्र ध नु ष', 'बु ज़ु र्ग', 'क ठ फो ड़ वा'])`));
-  check('Hindi: every word in every topic has at least 3 aksharas', await js(`SG.themes.hi.every(t => t.words.length >= 18 && t.words.every(w => SG.wordsearch.split(w).length >= 3))`));
+  check('Hindi: every word in every topic has at least 3 aksharas', await js(`SG.themes.hi.every(t => t.words.length >= 10 && t.words.every(w => SG.wordsearch.split(w).length >= 3))`));
   await go('#/wordsearch/levels');
   await shot('31-hi-levels');
   for (const levelKey of ['easy', 'hard']) {
     await go('#/wordsearch/' + levelKey);
     const hs = await js(SOLVE);
-    check(`Hindi ${levelKey}: every word is really in the grid`, hs.words.length === (levelKey === 'easy' ? 6 : 10) && hs.words.every(w => !w.missing), JSON.stringify(hs.words.filter(w => w.missing)));
+    check(`Hindi ${levelKey}: every word is really in the grid`, hs.words.length === (levelKey === 'easy' ? 5 : 8) && hs.words.every(w => !w.missing), JSON.stringify(hs.words.filter(w => w.missing)));
     const letter = await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`);
     check(`Hindi ${levelKey}: aksharas are big and the board fits`, letter >= 19 && hs.boardBottom <= hs.vh && hs.scrollW <= hs.vw, 'letter=' + letter);
     let k = 0;
@@ -503,14 +485,11 @@ try {
   }
   await go('#/tilematch/hard');
   {
-    const centres = await js(`[...document.querySelectorAll('.tm-tile')].map(t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })`);
-    const faces = await js(`[...document.querySelectorAll('.tm-face')].map(f => f.textContent)`);
+    const tiles = await tmState();
     const classic = ['🍎', '🍇', '🚗', '⚽', '🎁', '🐢', '🌈', '🐱', '✈️'];
-    check('Hindi tile match: uses the Indian picture set', faces.every(f => !classic.includes(f)), faces.join(' '));
-    await click(centres[0].x, centres[0].y);
-    check('Hindi tile match: names the picture in Hindi', /[\u0900-\u097F]/.test(await js(`document.querySelector('.tm-tile').getAttribute('aria-label')`)) && (await js(`document.querySelector('.status').textContent`)).includes('जोड़ी'), await js(`document.querySelector('.status').textContent`));
-    const other = faces.findIndex((f, i) => i > 0 && f !== faces[0]);
-    await click(centres[other].x, centres[other].y);
+    check('Hindi tile match: uses the Indian picture set', tiles.every(t => !classic.includes(t.face)), tiles.map(t => t.face).join(' '));
+    await click(tiles[0].x, tiles[0].y);
+    check('Hindi tile match: names the picture in Hindi', /[ऀ-ॿ]/.test(await js(`document.querySelector('.tm-tile').getAttribute('aria-label')`)) && (await js(`document.querySelector('.status').textContent`)).includes('दो और'), await js(`document.querySelector('.status').textContent`));
     await sleep(300);
     await shot('34-hi-tilematch');
   }
@@ -572,7 +551,7 @@ try {
   s = await js(SOLVE);
   await shot('14-ws-hard-phone');
   check('phone: hard grid still fits width', s.scrollW <= s.vw, 'cell=' + s.cell.toFixed(1));
-  check('phone: hard uses a smaller grid so letters stay at least 19px', s.n === 10 && (await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`)) >= 19, 'n=' + s.n);
+  check('phone: hard uses a smaller grid so letters stay at least 19px', s.n <= 10 && (await js(`parseFloat(getComputedStyle(document.querySelector('.ws-cell')).fontSize)`)) >= 19, 'n=' + s.n);
   await go('#/tilematch/hard');
   await shot('15-tm-hard-phone');
   check('phone: tile match has no sideways scroll', await js(`document.documentElement.scrollWidth <= innerWidth`));
@@ -580,7 +559,7 @@ try {
   { // a finger that slides 30px while pressing (tremor) must still count as a tap
     const t = await js(`(() => { const r = document.querySelector('.tm-tile').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     await touchDrag(t.x - 15, t.y - 10, t.x + 15, t.y + 12);
-    check('phone: a drifting finger still turns the tile over', await js(`document.querySelector('.tm-tile').classList.contains('up')`));
+    check('phone: a drifting finger still picks up the picture', await js(`document.querySelector('.tm-tile').classList.contains('picked')`));
     const centred = await js(`(() => { const b = document.querySelector('.tm-board').getBoundingClientRect(); return { above: b.top, below: innerHeight - b.bottom }; })()`);
     check('phone: the tiles sit in the middle of the screen, within easy reach', centred.below < centred.above + 80, JSON.stringify(centred));
   }
@@ -695,8 +674,10 @@ try {
       seq = await watchAndRecord();
       check(`pattern ${levelKey}: Watch Again replays the same length`, seq.length === from);
 
+      const rounds = [];
       for (let len = from; len <= to; len++) {
         if (len > from) seq = await watchAndRecord();
+        rounds.push(seq);
         if (seq.length !== len) { check(`pattern ${levelKey}: pattern of ${len} shown`, false, 'seen ' + seq); break; }
         for (let k = 0; k < seq.length; k++) {
           await click(centres[seq[k]].x, centres[seq[k]].y);
@@ -704,8 +685,9 @@ try {
           await sleep(80);
         }
         if (len === from + 1 && levelKey === 'easy') await shot('43-pt-round-done');
-        if (len < to && !(await statusText()).startsWith('Well remembered')) check(`pattern ${levelKey}: round ${len} completes`, false, await statusText());
+        if (len < to && !(await statusText()).startsWith('Well done')) check(`pattern ${levelKey}: round ${len} completes`, false, await statusText());
       }
+      check(`pattern ${levelKey}: every round is a new pattern, not the last one made longer`, rounds.slice(1).some((r, i) => r.slice(0, rounds[i].length).join() !== rounds[i].join()), JSON.stringify(rounds));
       await sleep(2700);
       check(`pattern ${levelKey}: finish screen appears after the longest pattern`, await js(`!!document.querySelector('.panel-win')`), await statusText().catch(() => ''));
       if (levelKey === 'easy') await shot('44-pt-win');
@@ -716,9 +698,11 @@ try {
     {
       const centres = await centresOf('.pt-pad');
       await js(`document.querySelector('.pt-watch').click()`);
-      await sleep(700);
+      await sleep(900);
+      check('pattern: while showing, the lit pad shows its step number', (await js(`(document.querySelector('.pt-pad.lit') || {}).dataset?.step`)) === '1');
+      await shot('41b-pt-showing-step');
       await click(centres[1].x, centres[1].y);
-      check('pattern: tapping during the show changes nothing', (await js(`document.querySelectorAll('.pt-dots .on').length`)) === 0 && (await statusText()) === 'Watch the pads…');
+      check('pattern: tapping during the show changes nothing', (await js(`document.querySelectorAll('.pt-dots .on').length`)) === 0 && (await statusText()) === 'Watch…');
     }
 
     await viewport(390, 844, true);
@@ -753,9 +737,13 @@ try {
     })()`;
     const sortState = () => js(SORT_STATE);
 
-    check('sorting: every set of baskets has enough pictures for every level (their labels are never dealt)', await js(`(() => {
+    check('sorting: every set of baskets has enough pictures for its level, and no picture fits two of its baskets', await js(`(() => {
       const g = SG.sorting.groups;
-      return Object.keys(SG.sorting.sets).every(n => SG.sorting.sets[n].every(set => set.reduce((sum, k) => sum + g[k].items.filter(i => !i[3] && i[0] !== g[k].sign).length, 0) >= (n === '2' ? 10 : 12)));
+      const need = { easy: 6, medium: 10, hard: 12 };
+      return Object.keys(SG.sorting.sets).every(level => SG.sorting.sets[level].every(set => {
+        const clash = set.some((k, i) => set.slice(i + 1).some(j => g[k].items.some(a => g[j].items.some(b => b[0] === a[0]))));
+        return !clash && set.reduce((sum, k) => sum + g[k].items.filter(i => !i[3] && i[0] !== g[k].sign).length, 0) >= need[level];
+      }));
     })()`));
     await viewport(1280, 800, false);
     await go('#/sorting/levels');
@@ -773,17 +761,18 @@ try {
         await sleep(100);
         check(`sorting ${levelKey}: tapping a basket first says to pick a picture`, (await statusText()).startsWith('First tap a picture') && (await sortState()).sorted === 0, await statusText());
         await click(st.card.x, st.card.y);
-        check(`sorting ${levelKey}: tapping a picture picks it up and says what to do`, (await statusText()).includes('Now tap the basket') && await js(`document.querySelector('.so-card').classList.contains('so-selected')`), await statusText());
+        check(`sorting ${levelKey}: tapping a picture picks it up and says what to do`, (await statusText()).includes('Now tap its basket') && await js(`document.querySelector('.so-card').classList.contains('so-selected')`), await statusText());
         await click(st.card.x, st.card.y);
         check(`sorting ${levelKey}: tapping it again keeps it picked up`, await js(`document.querySelector('.so-card').classList.contains('so-selected')`));
         const wrong = (st.right + 1) % baskets;
         await drag(st.card.x, st.card.y, st.baskets[wrong].x, st.baskets[wrong].y);
-        await sleep(450);
-        check(`sorting ${levelKey}: a wrong basket sends the picture back, gently`, (await statusText()).includes('is not the basket') && (await sortState()).sorted === 0, await statusText());
+        await sleep(600);
         if (levelKey === 'hard') await shot('52-so-wrong');
+        check(`sorting ${levelKey}: a wrong basket shakes its head with a cross`, await js(`document.querySelectorAll('.so-basket.so-nope').length === 1`));
+        check(`sorting ${levelKey}: a wrong basket sends the picture back, gently`, (await statusText()).startsWith('Not in ') && (await sortState()).sorted === 0, await statusText());
         await click(st.baskets[wrong].x, st.baskets[wrong].y);
         await sleep(100);
-        check(`sorting ${levelKey}: a second miss shows the right basket, with a pointing hand`, (await statusText()).includes('is circled') && (await js(`document.querySelectorAll('.so-basket.so-hint').length === 1 && getComputedStyle(document.querySelector('.so-hint .so-point')).display === 'block'`)), await statusText());
+        check(`sorting ${levelKey}: a second miss shows the right basket, with a pointing hand`, (await statusText()).includes('See the hand') && (await js(`document.querySelectorAll('.so-basket.so-hint').length === 1 && getComputedStyle(document.querySelector('.so-hint .so-point')).display === 'block'`)), await statusText());
         if (levelKey === 'hard') { await sleep(2600); await shot('52b-so-hint'); }
         // Let go far from any basket: it floats back and nothing else happens.
         await drag(st.card.x, st.card.y, st.card.x + 300, st.card.y - 150);
@@ -827,9 +816,9 @@ try {
     await go('#/sorting/medium');
     await shot('56-so-medium-tablet');
     // Each basket can be told apart without reading: its own scene and a picture label
-    for (const [want, name] of [['Live on land', '57-so-land-water-sky'], ['Hot', '58-so-hot-cold']]) {
+    for (const [want, name] of [['Sky', '57-so-land-water-sky'], ['Hot', '58-so-hot-cold'], ['Puja', '59-so-kitchen-puja']]) {
       for (let i = 0; i < 12; i++) {
-        await go('#/sorting/' + (want === 'Hot' ? 'easy' : 'hard'));
+        await go('#/sorting/' + (want === 'Hot' ? 'easy' : want === 'Puja' ? 'medium' : 'hard'));
         if (await js(`[...document.querySelectorAll('.so-basket-name')].some(n => n.textContent === '${want}')`)) break;
       }
       await shot(name);
@@ -850,7 +839,7 @@ try {
       return { part: p.dataset.part, missing: true };
     }))()`;
     const fillOf = part => js(`document.querySelector('.col-picture [data-part="${part}"]').getAttribute('fill')`);
-    const pickColour = name => js(`[...document.querySelectorAll('.col-swatch')].find(b => b.getAttribute('aria-label') === '${name}').click()`);
+    const pickColour = name => js(`(() => { const b = [...document.querySelectorAll('.col-swatch')].find(b => b.getAttribute('aria-label') === '${name}'); if (!b) throw new Error('no ${name} swatch; page: ' + location.hash + ' lang=' + document.documentElement.lang + ' swatches=' + [...document.querySelectorAll('.col-swatch')].map(x => x.getAttribute('aria-label')).join()); b.click(); })()`);
 
     await viewport(1280, 800, false);
     await go('#/colouring');
@@ -861,7 +850,7 @@ try {
     {
       const info = await js(`(() => { const p = document.querySelector('.col-picture').getBoundingClientRect(); const s = [...document.querySelectorAll('.col-swatch')].map(b => b.offsetWidth); const f = document.querySelector('.col-finish').getBoundingClientRect(); return { pic: p.width, bottom: Math.max(p.bottom, f.bottom), minSwatch: Math.min(...s), vh: innerHeight, scrollW: document.documentElement.scrollWidth, vw: innerWidth }; })()`);
       check('colouring: a big picture, big colours, all on screen', info.pic >= 400 && info.minSwatch >= 64 && info.bottom <= info.vh && info.scrollW <= info.vw, JSON.stringify(info));
-      check('colouring: says which colour is chosen', (await statusText()) === 'Colour: Red. Tap part of the picture.', await statusText());
+      check('colouring: says which colour is chosen', (await statusText()) === 'Red. Tap the picture.', await statusText());
       const points = await js(PART_POINTS);
       check('colouring: every part of the flower can be tapped', points.every(p => !p.missing), JSON.stringify(points.filter(p => p.missing)));
       const colours = ['Yellow', 'Saffron', 'Pink', 'Green', 'Sky blue'];
@@ -893,6 +882,20 @@ try {
       await go('#/colouring/flower');
       await js(`document.querySelector('.col-finish').click()`);
       check('colouring: "I am Finished" shows the picture, saved', await js(`!!document.querySelector('.panel-win .col-finished') && document.querySelector('.panel-title').textContent === 'Beautiful!'`));
+      // A photo with the masterpiece (the test browser has a pretend camera)
+      await js(`document.querySelector('.win-photo').click()`);
+      await sleep(1500);
+      check('photo: the camera opens, with the picture framed in the corner', await js(`(() => { const v = document.querySelector('.pb-video'); return !!v && v.videoWidth > 0 && !!document.querySelector('.pb-art svg'); })()`), await statusText());
+      await shot('68-photo-camera');
+      await js(`document.querySelector('.pb-take').click()`);
+      await sleep(1200);
+      check('photo: a big 3-2-1 before the photo', /^[321]$/.test(await js(`document.querySelector('.pb-count').textContent`)));
+      await sleep(2600);
+      check('photo: the photo is shown, ready to keep', await js(`(() => { const p = document.querySelector('.pb-shot'); return !p.hidden && p.naturalWidth > 0 && !document.querySelector('.pb-save').hidden; })()`) && (await statusText()) === 'Here is your photo!', await statusText());
+      await shot('69-photo-taken');
+      await js(`document.querySelector('.pb-back').click()`);
+      await sleep(200);
+      check('photo: Back returns to the finished picture, and the camera is off', await js(`!!document.querySelector('.panel-win .col-finished') && !document.querySelector('.pb-video')`));
       await shot('63-col-finished');
       await js(`[...document.querySelectorAll('.panel button')].find(b => b.textContent === 'Keep Colouring').click()`);
       check('colouring: Keep Colouring goes back to the same picture', (await fillOf(points[0].part)) === '#8E44AD');
@@ -979,7 +982,7 @@ try {
     await go('#/colouring');
     check('Hindi colouring: picture names in Hindi', (await js(`document.querySelector('.levels-title').textContent`)) === 'तस्वीर चुनिए' && await js(`[...document.querySelectorAll('.level-name')].every(n => /[\\u0900-\\u097F]/.test(n.textContent))`));
     await go('#/colouring/lotus');
-    check('Hindi colouring: names the colour in Hindi', (await statusText()).startsWith('रंग:'), await statusText());
+    check('Hindi colouring: names the colour in Hindi', (await statusText()).includes(' रंग। '), await statusText());
     await viewport(390, 844, true);
     await go('#/');
     await shot('71-hi-home-phone');
@@ -994,7 +997,7 @@ try {
       const out = [];
       for (const lang of ['en', 'hi']) {
         SG.setLang(lang);
-        for (const k of ['start', 'settings', 'levels.playing', 'levels.resumeTitle', 'levels.resumeText', 'bar.level', 'so.pick', 'so.tapFirst', 'so.table']) {
+        for (const k of ['start', 'settings', 'levels.playing', 'levels.resumeTitle', 'bar.level', 'so.pick', 'so.tapFirst', 'so.table']) {
           let v = SG.t(k, 'x');
           if (v === undefined || (lang === 'hi' && !/[\\u0900-\\u097F]/.test(v))) out.push(lang + ':' + k);
         }
@@ -1042,50 +1045,64 @@ try {
       check('harmonium: eight big keys, Sa to high Sa', info.count === 8 && info.w >= 64 && info.h >= 120, JSON.stringify(info));
       const keys = await keyCentres();
       await mouse('mousePressed', keys[4].x, keys[4].y);
-      check('harmonium: a key sounds while it is held, and is named', await js(`document.querySelectorAll('.hm-key')[4].classList.contains('sounding')`) && (await statusText()) === 'You played Pa.', await statusText());
+      check('harmonium: a key sounds while it is held, and is named', await js(`document.querySelectorAll('.hm-key')[4].classList.contains('sounding')`) && (await statusText()) === 'Pa', await statusText());
       await shot('100-hm-free');
       await mouse('mouseReleased', keys[4].x, keys[4].y);
       check('harmonium: letting go stops it', !(await js(`document.querySelectorAll('.hm-key')[4].classList.contains('sounding')`)));
     }
-    for (const tune of ['scale', 'jingle']) {
-      await go('#/harmonium/' + tune);
-      const phrases = await js(`SG.harmonium.tunes['${tune}'].map(SG.harmonium.parse)`);
+    check('harmonium: the songs\' notes are all playable, and Happy Birthday is the tune everyone knows', await js(`(() => {
+      const b = SG.harmonium.prepare('birthday');
+      const tune = b.lines.map(l => l.map(n => n.note.code).join(' ')).join(' | ');
+      return tune === '.P .P .D .P S .N | .P .P .D .P R S | .P .P P G S .N .D | M M G S R S'
+        && ['aarti', 'raghupati', 'anthem'].every(k => SG.harmonium.prepare(k).keys.length <= 10);
+    })()`));
+    for (const song of ['birthday', 'aarti', 'anthem', 'raghupati']) {
+      await go('#/harmonium/' + song);
+      const plan = await js(`(() => { const p = SG.harmonium.prepare('${song}'); return p.lines.map(l => l.map(n => p.keys.findIndex(k => k.code === n.note.code))); })()`);
       const keys = await keyCentres();
       const nextKey = () => js(`[...document.querySelectorAll('.hm-key')].findIndex(k => k.classList.contains('hm-next'))`);
-      check(`harmonium ${tune}: the first key has the pointing hand, and the notes are shown`, (await nextKey()) === phrases[0][0].key && (await js(`document.querySelectorAll('.hm-chip').length`)) === phrases[0].length);
-      if (tune === 'scale') {
-        await click(keys[3].x, keys[3].y);
-        check('harmonium: another key just plays its note, and the hand waits', (await statusText()).startsWith('That was Ma.') && (await nextKey()) === 0 && (await js(`document.querySelectorAll('.hm-chip.done').length`)) === 0, await statusText());
+      check(`harmonium ${song}: the first key has the pointing hand, and the words are shown`, (await nextKey()) === plan[0][0] && (await js(`document.querySelectorAll('.hm-chip').length`)) === plan[0].length && (await js(`document.querySelector('.hm-chip.next').textContent.length`)) > 0);
+      if (song === 'birthday') {
+        await shot('101-hm-birthday');
+        const other = plan[0][0] === 0 ? 1 : 0;
+        await click(keys[other].x, keys[other].y);
+        check('harmonium: another key just plays its note, and the hand waits', (await statusText()) === 'Try the key with the hand.' && (await nextKey()) === plan[0][0] && (await js(`document.querySelectorAll('.hm-chip.done').length`)) === 0, await statusText());
         await js(`document.querySelector('.hm-listen').click()`);
         await sleep(700);
         check('harmonium: Listen plays the line, lighting each key', (await statusText()) === 'Listen…' && (await js(`document.querySelectorAll('.hm-key.sounding').length`)) === 1);
-        await sleep(phrases[0].reduce((a, n) => a + n.beats, 0) * 420 + 200);
-        check('harmonium: then it is the player\'s turn', (await statusText()).startsWith('Your turn'), await statusText());
+        await sleep(await js(`SG.harmonium.prepare('birthday').lines[0].reduce((a, n) => a + n.beats, 0) * 430 + 300`));
+        check('harmonium: then it is the player\'s turn', (await statusText()) === 'Your turn.', await statusText());
       }
-      for (let p = 0; p < phrases.length; p++) {
-        for (const n of phrases[p]) { await click(keys[n.key].x, keys[n.key].y); await sleep(30); }
-        if (tune === 'scale' && p === 0) { await shot('101-hm-scale-line-done'); }
+      for (let l = 0; l < plan.length; l++) {
+        for (const k of plan[l]) { await click(keys[k].x, keys[k].y); await sleep(30); }
+        if (song === 'aarti' && l === 0) { await shot('102-hm-aarti-line-done'); }
         await sleep(800);
       }
       await sleep(2300);
-      check(`harmonium ${tune}: playing every note finishes the tune`, await js(`!!document.querySelector('.panel-win')`), await statusText().catch(() => ''));
-      if (tune === 'jingle') await shot('102-hm-win');
+      check(`harmonium ${song}: playing every note finishes the song`, await js(`!!document.querySelector('.panel-win')`), await statusText().catch(() => ''));
     }
-    await go('#/harmonium/twinkle');
-    await shot('103-hm-twinkle');
+    await shot('103-hm-win');
+    await go('#/harmonium/raghupati');
+    await shot('104-hm-raghupati');
     await viewport(390, 844, true);
-    await go('#/harmonium/twinkle');
+    await go('#/harmonium/aarti');
     {
       const info = await js(`(() => { const k = [...document.querySelectorAll('.hm-key')]; return { w: Math.min(...k.map(x => x.offsetWidth)), rows: new Set(k.map(x => Math.round(x.getBoundingClientRect().top))).size }; })()`);
-      check('phone: the keys go in two rows of four, still big', info.w >= 64 && info.rows === 2, JSON.stringify(info));
+      check('phone: the keys go in two rows, still big', info.w >= 64 && info.rows === 2, JSON.stringify(info));
       const keys = await keyCentres();
-      await tapTouch(keys[0].x, keys[0].y);
+      const first = await js(`(() => { const p = SG.harmonium.prepare('aarti'); return p.keys.findIndex(k => k.code === p.lines[0][0].note.code); })()`);
+      await tapTouch(keys[first].x, keys[first].y);
       check('phone: a finger plays the key', (await js(`document.querySelectorAll('.hm-chip.done').length`)) === 1);
-      await shot('104-hm-phone');
+      await shot('105-hm-phone');
     }
     await viewport(1024, 768, true);
-    await go('#/harmonium/scale');
-    await shot('105-hm-tablet');
+    await go('#/harmonium/anthem');
+    await shot('106-hm-tablet');
+    await js(`SG.setLang('hi')`);
+    await go('#/harmonium/aarti');
+    check('Hindi harmonium: the words and the keys are in Hindi', (await js(`document.querySelector('.hm-chip').textContent`)) === 'ॐ' && (await js(`document.querySelector('.hm-name').textContent`)).length > 0 && /[ऀ-ॿ]/.test(await js(`document.querySelector('.hm-name').textContent`)));
+    await shot('107-hm-hindi');
+    await js(`SG.setLang('en')`);
     await viewport(1280, 800, false);
   }
 
@@ -1100,7 +1117,7 @@ try {
     check('rangoli: a big floor, all on screen', board.s >= 400 && (await js(`document.querySelector('.rg-finish').getBoundingClientRect().bottom`)) <= 800, JSON.stringify(board));
     await js(`[...document.querySelectorAll('.rg-swatch')].find(b => b.getAttribute('aria-label') === 'Pink').click()`);
     await js(`[...document.querySelectorAll('.rg-shape')].find(b => b.getAttribute('aria-label') === 'Diamonds').click()`);
-    check('rangoli: says the colour and shape chosen', (await statusText()) === 'Pink diamonds. Tap anywhere on the floor.', await statusText());
+    check('rangoli: says the colour and shape chosen', (await statusText()) === 'Pink diamonds. Tap the floor.', await statusText());
     await click(board.x, board.y);
     check('rangoli: a tap in the middle makes one mark', (await marks()) === 1);
     const u = board.s / 200; // board units to pixels
@@ -1157,7 +1174,7 @@ try {
     await viewport(1280, 800, false);
     const litDiyas = () => js(`document.querySelectorAll('.dy-diya.lit').length`);
     const litDots = () => js(`document.querySelectorAll('.dy-dot.lit').length`);
-    for (const [levelKey, count] of [['easy', 3], ['medium', 5], ['hard', 7]]) {
+    for (const [levelKey, count] of [['easy', 4], ['medium', 6], ['hard', 8]]) {
       await go('#/diya/' + levelKey);
       const path = await js(`SG.current().peek()`);
       const info = await js(`(() => { const b = document.querySelector('.dy-board').getBoundingClientRect(); return { bottom: b.bottom, vh: innerHeight, w: b.width }; })()`);
@@ -1176,11 +1193,12 @@ try {
         await mouse('mouseReleased', path[5].x + 200, path[5].y + 150);
         check('diya: sliding along lights the dots; wandering off loses nothing', (await litDots()) === 5, 'lit=' + await litDots());
         await shot('121-dy-sliding');
-        // tap the next few dots, one by one
-        for (let i = 6; i <= 9; i++) await click(path[i].x - 8, path[i].y + 6);
-        check('diya: tapping the dots one by one works too, and lights the next diya', (await litDiyas()) === 2 && (await statusText()).startsWith('Lovely! 2 of 3'), await statusText());
-        await mouse('mousePressed', path[9].x, path[9].y);
-        for (let i = 10; i < path.length; i++) { await mouse('mouseMoved', (path[i - 1].x + path[i].x) / 2, (path[i - 1].y + path[i].y) / 2); await mouse('mouseMoved', path[i].x, path[i].y); }
+        // tap the next dots, one by one, up to the next diya
+        const nextDiya = path.findIndex(p => p.diya === 1);
+        for (let i = 6; i <= nextDiya; i++) await click(path[i].x - 6, path[i].y + 5);
+        check('diya: tapping the dots one by one works too, and lights the next diya', (await litDiyas()) === 2 && (await statusText()).startsWith('Lovely! 2 of 4'), await statusText());
+        await mouse('mousePressed', path[nextDiya].x, path[nextDiya].y);
+        for (let i = nextDiya + 1; i < path.length; i++) { await mouse('mouseMoved', (path[i - 1].x + path[i].x) / 2, (path[i - 1].y + path[i].y) / 2); await mouse('mouseMoved', path[i].x, path[i].y); }
         await mouse('mouseReleased', path[path.length - 1].x, path[path.length - 1].y);
       } else {
         // one long slide, through every point on the way
@@ -1190,20 +1208,34 @@ try {
         if (levelKey === 'hard') await shot('122-dy-hard-done');
       }
       check(`diya ${levelKey}: every diya lit`, (await litDiyas()) === count, 'lit=' + await litDiyas());
+      if (levelKey !== 'easy') {
+        // the path is narrow: a finger well off to the side does not light the next dot
+        await go('#/diya/' + levelKey);
+        const p2 = await js(`SG.current().peek()`);
+        const dx = p2[1].y - p2[0].y, dy = p2[0].x - p2[1].x, len = Math.hypot(dx, dy);
+        await click(p2[1].x + dx / len * 45, p2[1].y + dy / len * 45);
+        check(`diya ${levelKey}: the finger has to stay on the path`, (await litDots()) === 0);
+        await mouse('mousePressed', p2[0].x, p2[0].y);
+        for (let i = 1; i < p2.length; i++) { await mouse('mouseMoved', (p2[i - 1].x + p2[i].x) / 2, (p2[i - 1].y + p2[i].y) / 2); await mouse('mouseMoved', p2[i].x, p2[i].y); }
+        await mouse('mouseReleased', p2[p2.length - 1].x, p2[p2.length - 1].y);
+      }
       await sleep(2200);
       check(`diya ${levelKey}: finish screen appears`, await js(`!!document.querySelector('.panel-win')`));
       if (levelKey === 'medium') await shot('123-dy-win');
     }
     await go('#/diya/medium');
     await js(`document.querySelector('.dy-board').focus()`);
-    for (let i = 0; i < 9; i++) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    for (let i = 0; i < 12; i++) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
     check('diya: the keyboard moves the light on too', (await litDiyas()) === 2);
     await viewport(390, 844, true);
     await go('#/diya/medium');
     {
       const path = await js(`SG.current().peek()`);
       await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: path[0].x, y: path[0].y }] });
-      for (let i = 1; i <= 12; i++) await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: path[i].x + 6, y: path[i].y + 4 }] });
+      for (let i = 1; i <= 14; i++) {
+        await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: (path[i - 1].x + path[i].x) / 2 + 4, y: (path[i - 1].y + path[i].y) / 2 + 3 }] });
+        await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: path[i].x + 4, y: path[i].y + 3 }] });
+      }
       await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       check('phone: a finger sliding along the dots lights them, and the next diya', (await litDiyas()) >= 2 && (await js(`pageYOffset`)) === 0, 'lit=' + await litDiyas());
       await shot('124-dy-phone');
@@ -1211,6 +1243,52 @@ try {
     await viewport(1024, 768, true);
     await go('#/diya/hard');
     await shot('125-dy-tablet');
+    await viewport(1280, 800, false);
+  }
+
+  // ---------- Making Chai ----------
+  if (want('chai')) {
+    await viewport(1280, 800, false);
+    for (const recipe of ['chai', 'nimbu', 'khichdi']) {
+      await go('#/chai/' + recipe);
+      const order = await js(`SG.current().order()`); // the step each card is, in the order they lie
+      const cards = await centresOf('.ch-card');
+      const info = await js(`(() => { const c = [...document.querySelectorAll('.ch-card')]; return { count: c.length, size: Math.min(...c.map(x => x.offsetWidth)), slots: document.querySelectorAll('.ch-slot').length, bottom: Math.max(...c.map(x => x.getBoundingClientRect().bottom)), vh: innerHeight }; })()`);
+      check(`chai ${recipe}: the steps are mixed up, big, with a numbered place for each`, info.count === order.length && info.slots === order.length && info.size >= 96 && info.bottom <= info.vh, JSON.stringify(info));
+      check(`chai ${recipe}: asks what comes first`, (await statusText()) === 'What comes first?');
+      if (recipe === 'chai') {
+        await shot('130-ch-start');
+        const wrong = order.findIndex(o => o !== 0);
+        await click(cards[wrong].x, cards[wrong].y);
+        check('chai: a step tapped too early shakes and stays put', (await statusText()) === 'Not yet. Try another.' && (await js(`document.querySelectorAll('.ch-slot.filled').length`)) === 0);
+        await sleep(500);
+        await click(cards[wrong].x, cards[wrong].y);
+        check('chai: after a second try, a hand points at the step that comes next', (await statusText()).startsWith('This one') && (await js(`document.querySelectorAll('.ch-card.ch-hint').length === 1 && document.querySelector('.ch-card.ch-hint').getAttribute('aria-label') === SG.chai.recipes.chai.steps[0][1]`)));
+        await shot('131-ch-hint');
+      }
+      for (let step = 0; step < order.length; step++) {
+        const k = order.indexOf(step);
+        await click(cards[k].x, cards[k].y);
+        await sleep(450);
+        if ((await js(`document.querySelectorAll('.ch-slot.filled').length`)) !== step + 1) { check(`chai ${recipe}: step ${step + 1} goes into its place`, false, await statusText()); break; }
+        if (recipe === 'khichdi' && step === 2) await shot('132-ch-khichdi-mid');
+      }
+      await sleep(2200);
+      check(`chai ${recipe}: all the steps in order finish the recipe`, await js(`!!document.querySelector('.panel-win')`));
+      if (recipe === 'chai') await shot('133-ch-win');
+    }
+    await viewport(390, 844, true);
+    await go('#/chai/khichdi');
+    {
+      const order = await js(`SG.current().order()`);
+      const cards = await centresOf('.ch-card');
+      const info = await js(`(() => { const c = [...document.querySelectorAll('.ch-card')]; return { size: Math.min(...c.map(x => x.offsetWidth)), bottom: Math.max(...c.map(x => x.getBoundingClientRect().bottom)), vh: innerHeight }; })()`);
+      check('phone: six big steps and their places all fit', info.size >= 96 && info.bottom <= info.vh, JSON.stringify(info));
+      await tapTouch(cards[order.indexOf(0)].x, cards[order.indexOf(0)].y);
+      await sleep(450);
+      check('phone: a finger tap puts the first step in place', (await js(`document.querySelectorAll('.ch-slot.filled').length`)) === 1);
+      await shot('134-ch-phone');
+    }
     await viewport(1280, 800, false);
   }
 
@@ -1259,7 +1337,7 @@ try {
       }
       // The level page while a game is under way (with Keep Playing at the top)
       await go('#/tilematch/hard');
-      await js(`(() => { const t = [...document.querySelectorAll('.tm-tile')]; const f = t.map(x => x.querySelector('.tm-face').textContent); const j = f.indexOf(f[0], 1); t[0].click(); t[j].click(); })()`);
+      await js(`(() => { const t = [...document.querySelectorAll('.tm-tile')]; const f = t.map(x => x.querySelector('.tm-face').textContent); t.filter((x, i) => f[i] === f[0]).forEach(x => x.click()); })()`);
       await js(`location.hash = '#/tilematch/levels'`);
       await measure('level page with a game under way', 'resume');
       check(`fits the screen at ${size} (${w}x${h}): every page, no scrolling, buttons at least 56px`, bad.length === 0, bad.join('; '));

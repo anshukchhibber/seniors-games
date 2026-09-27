@@ -1,4 +1,4 @@
-// Number Hunt: big round number tokens are scattered over the screen; tap them in order - 1, 2, 3...
+// Number Hunt: numbered kites fly all over a blue sky; tap them in order - 1, 2, 3...
 // It exercises scanning, attention and counting, and makes the hand reach all over the screen.
 //
 // No timer. Tapping some other number is never "wrong": the status line just says which number
@@ -23,6 +23,19 @@
   const SMALLER_SETS = [24, 20, 16, 12, 9];
   const GAP = 10;
   const WIN_PAUSE_MS = 2200;
+  const KITE_COLOURS = ['#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5', '#8E24AA', '#EC407A', '#00ACC1'];
+
+  // A patang: a diamond with its cross-sticks, and a tail with little bows. The number sits on a
+  // white patch in the middle (in the button's own text, so it is read out too).
+  function kite(colour) {
+    const svg = SG.svg;
+    return svg('svg', { class: 'nh-kite', viewBox: '0 0 100 100', 'aria-hidden': 'true' }, [
+      svg('path', { class: 'nh-tail', d: 'M50 78C40 84 60 88 50 94', fill: 'none', 'stroke-width': 3, 'stroke-linecap': 'round' }),
+      svg('path', { d: 'M44 86l-6-3 1 6zM56 91l6-3-1 6z', fill: colour, stroke: '#1F2A44', 'stroke-width': 1.5 }),
+      svg('path', { class: 'nh-diamond', d: 'M50 4L90 41 50 78 10 41Z', fill: colour, 'stroke-width': 4, 'stroke-linejoin': 'round' }),
+      svg('path', { d: 'M50 4V78M10 41H90', stroke: '#1F2A44', 'stroke-opacity': 0.3, 'stroke-width': 2.5 })
+    ]);
+  }
   const SIDE_BY_SIDE = '(min-width: 640px) and (orientation: landscape)'; // keep in step with style.css
   const SIDE_WIDTH = 340 + 28;
 
@@ -38,8 +51,8 @@
       const sideBySide = window.matchMedia(SIDE_BY_SIDE).matches;
       const top = wrap.getBoundingClientRect().top + window.pageYOffset;
       return {
-        w: layoutEl.clientWidth - (sideBySide ? SIDE_WIDTH : 0),
-        h: SG.bottom() - top - (sideBySide ? 0 : foot.offsetHeight + 12) - 10
+        w: layoutEl.clientWidth - (sideBySide ? SIDE_WIDTH : 0) - 20, // the sky's border round the board
+        h: SG.bottom() - top - (sideBySide ? 0 : foot.offsetHeight + 12) - 30
       };
     }
 
@@ -49,7 +62,9 @@
       // Always two lines tall, so a longer message never pushes the numbers down.
       statusEl = el('p', { class: 'status nh-status', role: 'status' });
       const info = el('section', { class: 'nh-info' }, [
-        el('p', { class: 'nh-target' }, [el('span', { class: 'nh-target-label', text: t('nh.find') }), targetEl]),
+        // The number to find, on a kite just like the ones in the sky
+        el('p', { class: 'nh-target' }, [el('span', { class: 'nh-target-label', text: t('nh.find') }),
+          el('span', { class: 'nh-target-kite' }, [kite('#FDD835'), targetEl])]),
         statusEl
       ]);
 
@@ -81,7 +96,10 @@
       for (let n = 1; n <= count; n++) numbers.push(n);
       tiles = {};
       SG.shuffle(numbers).forEach(function (n, i) {
-        const button = el('button', { class: 'nh-tile pressable', type: 'button', text: String(n) });
+        const button = el('button', { class: 'nh-tile pressable', type: 'button' }, [
+          kite(KITE_COLOURS[SG.rand(KITE_COLOURS.length)]),
+          el('span', { class: 'nh-num', text: String(n) })
+        ]);
         // Where in its cell this token sits, from -1 (one edge) to 1 (the other). Fixed for the game.
         const tile = { n: n, i: i, button: button, done: false, ox: Math.random() * 2 - 1, oy: Math.random() * 2 - 1 };
         SG.onTap(button, function () { tapTile(tile); });
@@ -151,7 +169,7 @@
 
     function showWin() {
       const trophies = el('div', { class: 'nh-trophies panel-trophies', 'aria-hidden': 'true' }, Object.keys(tiles).map(function (n) {
-        return el('span', { text: n });
+        return el('span', { class: 'nh-trophy' }, [kite(KITE_COLOURS[n % KITE_COLOURS.length]), el('span', { class: 'nh-num', text: n })]);
       }));
       const panel = SG.winPanel(t('nh.win', count), trophies, newGame, '#/numbers/levels');
       stage.textContent = '';
@@ -194,32 +212,26 @@
     };
   }
 
-  // Round number tokens: 1 and 2 already found, 3 circled as the one to find.
+  // Numbered kites in a blue sky: 1 and 2 found, 3 circled as the one to find.
   // `opts.demo`: a hand taps the 3.
   function illustration(opts) {
     const svg = SG.svg;
-    const parts = [];
-    function token(cx, cy, n, state) {
-      const r = state === 'find' ? 15 : 13;
-      if (state === 'done') {
-        parts.push(svg('circle', { cx: cx, cy: cy, r: r, fill: '#D7EFDD', stroke: '#1F6B3F', 'stroke-width': 2.5 }));
-      } else {
-        parts.push(svg('circle', { cx: cx, cy: cy + 3, r: r, class: 'fill-deep' }));
-        parts.push(svg('circle', { cx: cx, cy: cy, r: r, fill: '#FFFFFF', class: 'stroke-deep', 'stroke-width': 3 }));
-      }
-      if (state === 'find') parts.push(svg('circle', { cx: cx, cy: cy, r: r + 6, fill: 'none', class: 'stroke-deep', 'stroke-width': 2.5, 'stroke-dasharray': '4.5 3.5' }));
-      parts.push(svg('text', {
-        x: cx, y: cy + 0.5, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-        'font-size': state === 'find' ? 18 : 15, 'font-weight': 800, fill: state === 'done' ? '#1F6B3F' : '#1F2A44'
-      }, [document.createTextNode(String(n))]));
+    const parts = [svg('rect', { x: 2, y: 2, width: 116, height: 86, rx: 12, fill: '#CBE7FD' }),
+      svg('ellipse', { cx: 96, cy: 76, rx: 16, ry: 6, fill: '#FFFFFF' }), svg('ellipse', { cx: 22, cy: 14, rx: 13, ry: 5, fill: '#FFFFFF' })];
+    function flyer(x, y, n, colour, state) {
+      const g = svg('g', { transform: 'translate(' + (x - 16) + ' ' + (y - 14) + ') scale(0.32)', opacity: state === 'done' ? 0.45 : 1 }, [kite(colour)]);
+      g.firstChild.setAttribute('class', 'nh-kite');
+      parts.push(g);
+      if (state === 'find') parts.push(svg('circle', { cx: x, cy: y - 1, r: 17, fill: 'none', class: 'stroke-deep', 'stroke-width': 2.5, 'stroke-dasharray': '4.5 3.5' }));
+      parts.push(svg('circle', { cx: x, cy: y - 1, r: 6.5, fill: '#FFFFFF', stroke: '#1F2A44', 'stroke-width': 1.2 }));
+      parts.push(svg('text', { x: x, y: y - 0.5, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 9, 'font-weight': 800, fill: '#1F2A44' }, [document.createTextNode(String(n))]));
     }
-    token(20, 22, 1, 'done');
-    token(48, 70, 2, 'done');
-    token(98, 20, 4);
-    token(20, 64, 6);
-    token(100, 66, 5);
-    token(64, 36, 3, 'find');
-    if (opts && opts.demo) parts.push(SG.demoHand(66, 40, 'tap'));
+    flyer(22, 42, 1, '#43A047', 'done');
+    flyer(48, 70, 2, '#FB8C00', 'done');
+    flyer(98, 22, 4, '#8E24AA');
+    flyer(94, 56, 5, '#E53935');
+    flyer(62, 30, 3, '#1E88E5', 'find');
+    if (opts && opts.demo) parts.push(SG.demoHand(64, 34, 'tap'));
     return svg('svg', { class: 'illus', viewBox: '0 0 120 90', 'aria-hidden': 'true' }, parts);
   }
 

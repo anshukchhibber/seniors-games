@@ -1,6 +1,8 @@
 // Word Search topics, per language. To add your own, copy a block and change the words.
+// Everyday words from an Indian home - short and common, nothing to puzzle over.
 //
-// English: CAPITAL letters A-Z only, no spaces, 4 to 12 letters.
+// icon:    a picture shown with the topic's name, so the topic is clear without reading
+// English: CAPITAL letters A-Z only, no spaces, 3 to 12 letters.
 // Hindi:   ordinary Devanagari, no spaces. Each word is split into aksharas for the grid
 //          (रिश्तेदार -> रि | श्ते | दा | र), and needs at least 3 of them. Conjuncts are fine.
 // Words longer than the grid are simply skipped (a tablet grid fits 8, 10 or 12 squares).
@@ -9,116 +11,51 @@
 
   SG.themes = {
     en: [
-      {
-        name: 'Garden',
-        words: ['ROSE', 'TULIP', 'DAISY', 'SEEDS', 'SOIL', 'SPADE', 'RAKE', 'HOSE', 'WEEDS', 'BLOOM',
-          'FENCE', 'HEDGE', 'LAWN', 'FERN', 'LILY', 'SHED', 'WATER', 'PETAL', 'ROOTS', 'GLOVES',
-          'ORCHID', 'COMPOST', 'SUNFLOWER', 'BUTTERFLY']
-      },
-      {
-        name: 'Kitchen',
-        words: ['SPOON', 'FORK', 'KNIFE', 'PLATE', 'KETTLE', 'OVEN', 'STOVE', 'BOWL', 'WHISK', 'APRON',
-          'TEAPOT', 'SUGAR', 'FLOUR', 'BREAD', 'BUTTER', 'SALT', 'PEPPER', 'RECIPE', 'SPICE', 'LADLE',
-          'TOAST', 'SAUCEPAN', 'CUPBOARD']
-      },
-      {
-        name: 'Animals',
-        words: ['HORSE', 'SHEEP', 'TIGER', 'ZEBRA', 'RABBIT', 'MONKEY', 'ELEPHANT', 'LION', 'BEAR', 'DEER',
-          'GOAT', 'CAMEL', 'OTTER', 'WOLF', 'MOUSE', 'DONKEY', 'GIRAFFE', 'PANDA', 'SQUIRREL', 'KANGAROO']
-      },
-      {
-        name: 'Birds',
-        words: ['ROBIN', 'SPARROW', 'EAGLE', 'PARROT', 'SWAN', 'DUCK', 'GOOSE', 'CROW', 'DOVE', 'PEACOCK',
-          'HERON', 'FINCH', 'PIGEON', 'STORK', 'WREN', 'HAWK', 'CRANE', 'MAGPIE', 'KINGFISHER', 'FLAMINGO']
-      },
-      {
-        name: 'Fruit',
-        words: ['APPLE', 'MANGO', 'BANANA', 'GRAPE', 'LEMON', 'PEACH', 'CHERRY', 'PLUM', 'ORANGE', 'PEAR',
-          'MELON', 'GUAVA', 'PAPAYA', 'LIME', 'KIWI', 'APRICOT', 'COCONUT', 'DATES', 'PINEAPPLE', 'STRAWBERRY']
-      },
-      {
-        name: 'Weather',
-        words: ['SUNNY', 'CLOUD', 'STORM', 'BREEZE', 'THUNDER', 'SNOW', 'FROST', 'MIST', 'WIND', 'RAINBOW',
-          'SHOWER', 'HAIL', 'WARM', 'COOL', 'DRIZZLE', 'MONSOON', 'SUNSHINE', 'HUMID', 'LIGHTNING', 'FORECAST']
-      },
-      {
-        name: 'Family',
-        words: ['MOTHER', 'FATHER', 'SISTER', 'BROTHER', 'AUNT', 'UNCLE', 'COUSIN', 'NIECE', 'NEPHEW', 'GRANDMA',
-          'GRANDPA', 'FAMILY', 'HOME', 'LOVE', 'BABY', 'DAUGHTER', 'TWINS', 'PARENT', 'WEDDING', 'HUGS']
-      },
-      {
-        name: 'Music',
-        words: ['PIANO', 'VIOLIN', 'DRUM', 'FLUTE', 'GUITAR', 'SONG', 'DANCE', 'CHOIR', 'HARP', 'TUNE',
-          'MELODY', 'RHYTHM', 'SINGER', 'OPERA', 'RADIO', 'TRUMPET', 'SITAR', 'TABLA', 'WALTZ', 'CONCERT',
-          'ORCHESTRA']
-      },
-      {
-        name: 'Travel',
-        words: ['TRAIN', 'PLANE', 'BOAT', 'BEACH', 'HOTEL', 'TICKET', 'SUITCASE', 'PASSPORT', 'CAMERA', 'MOUNTAIN',
-          'ISLAND', 'BRIDGE', 'MUSEUM', 'MARKET', 'TAXI', 'RIVER', 'LAKE', 'PICNIC', 'JOURNEY', 'POSTCARD']
-      },
-      {
-        name: 'Clothes',
-        words: ['SHIRT', 'SCARF', 'SHOES', 'SOCKS', 'DRESS', 'JACKET', 'GLOVES', 'COAT', 'SWEATER', 'SHAWL',
-          'BUTTON', 'POCKET', 'SKIRT', 'BOOTS', 'BELT', 'SARI', 'KURTA', 'SLIPPERS', 'CARDIGAN', 'RAINCOAT']
-      }
+      { name: 'Fruit', icon: '🥭', words: ['MANGO', 'BANANA', 'APPLE', 'GUAVA', 'GRAPES', 'LEMON', 'ORANGE', 'PAPAYA',
+        'COCONUT', 'MELON', 'PEAR', 'DATES', 'PLUM', 'LIME', 'CHERRY', 'FIGS'] },
+      { name: 'Food', icon: '🍛', words: ['ROTI', 'DAL', 'RICE', 'CHAI', 'CURD', 'GHEE', 'MILK', 'SUGAR', 'SALT', 'HONEY',
+        'BREAD', 'PANEER', 'PICKLE', 'SAMOSA', 'KHEER', 'HALWA', 'JALEBI', 'DOSA', 'IDLI', 'SOUP'] },
+      { name: 'Family', icon: '👪', words: ['MOTHER', 'FATHER', 'SISTER', 'BROTHER', 'SON', 'DAUGHTER', 'NANI', 'NANA',
+        'DADI', 'DADA', 'BABY', 'AUNTY', 'UNCLE', 'WIFE', 'HUSBAND', 'FAMILY', 'HOME', 'LOVE'] },
+      { name: 'Home', icon: '🏠', words: ['DOOR', 'ROOF', 'BED', 'CHAIR', 'TABLE', 'FAN', 'LAMP', 'CLOCK', 'MIRROR',
+        'WINDOW', 'SOFA', 'CUP', 'PLATE', 'SPOON', 'BUCKET', 'BROOM', 'PILLOW'] },
+      { name: 'Animals', icon: '🐘', words: ['COW', 'CAT', 'DOG', 'GOAT', 'HORSE', 'TIGER', 'LION', 'CAMEL', 'MONKEY',
+        'ELEPHANT', 'DONKEY', 'BEAR', 'DEER', 'RABBIT', 'MOUSE', 'SHEEP'] },
+      { name: 'Birds', icon: '🦜', words: ['CROW', 'PARROT', 'PEACOCK', 'PIGEON', 'SPARROW', 'DUCK', 'HEN', 'OWL',
+        'EAGLE', 'CRANE', 'SWAN', 'MYNA', 'ROOSTER', 'DOVE'] },
+      { name: 'Festivals', icon: '🎆', words: ['DIWALI', 'HOLI', 'RAKHI', 'DIYA', 'LAMP', 'SWEETS', 'GIFTS', 'PUJA',
+        'FLOWERS', 'RANGOLI', 'KITE', 'MELA', 'EID', 'AARTI', 'DRUMS'] },
+      { name: 'Colours', icon: '🎨', words: ['RED', 'BLUE', 'GREEN', 'PINK', 'YELLOW', 'WHITE', 'BLACK', 'ORANGE',
+        'BROWN', 'PURPLE', 'GOLD', 'SILVER', 'GREY'] },
+      { name: 'Body', icon: '🖐️', words: ['HAND', 'FOOT', 'EYES', 'EARS', 'NOSE', 'HAIR', 'HEAD', 'KNEE', 'ARM', 'LEGS',
+        'NECK', 'MOUTH', 'TEETH', 'FINGER'] },
+      { name: 'Clothes', icon: '👗', words: ['SARI', 'KURTA', 'SHIRT', 'SHAWL', 'SHOES', 'SOCKS', 'CAP', 'DHOTI', 'SCARF',
+        'SWEATER', 'SLIPPERS', 'COAT', 'BELT'] },
+      { name: 'Weather', icon: '☀️', words: ['SUN', 'RAIN', 'CLOUD', 'WIND', 'STORM', 'HOT', 'COLD', 'RAINBOW', 'MONSOON',
+        'FOG', 'SNOW', 'THUNDER'] }
     ],
 
     hi: [
-      {
-        name: 'बगीचा',
-        words: ['गुलाब', 'कमल', 'चमेली', 'तितली', 'टहनी', 'गमला', 'फुलवारी', 'तुलसी', 'सूरजमुखी', 'खुरपी',
-          'बगीचा', 'भँवरा', 'गिलहरी', 'पीपल', 'बरगद', 'मोगरा', 'गुड़हल', 'हरियाली', 'पत्तियाँ', 'अमलतास']
-      },
-      {
-        name: 'रसोई',
-        words: ['चम्मच', 'कटोरी', 'गिलास', 'कड़ाही', 'बेलन', 'चकला', 'पतीला', 'नमक', 'मसाला', 'अचार',
-          'चावल', 'पराठा', 'चटनी', 'खिचड़ी', 'पापड़', 'जलेबी', 'समोसा', 'अदरक', 'लहसुन', 'धनिया',
-          'इलायची', 'छलनी', 'चिमटा']
-      },
-      {
-        name: 'जानवर',
-        words: ['बंदर', 'हिरन', 'खरगोश', 'गिलहरी', 'बकरी', 'मगरमच्छ', 'कछुआ', 'नेवला', 'सियार', 'भेड़िया',
-          'जिराफ़', 'बारहसिंगा', 'तेंदुआ', 'लंगूर', 'मेंढक', 'छिपकली', 'अजगर', 'बछड़ा', 'नीलगाय', 'चमगादड़']
-      },
-      {
-        name: 'पक्षी',
-        words: ['कबूतर', 'चिड़िया', 'कोयल', 'बुलबुल', 'बगुला', 'गौरैया', 'बतख', 'सारस', 'तीतर', 'बटेर',
-          'पपीहा', 'कठफोड़वा', 'नीलकंठ', 'चकोर', 'गरुड़', 'टिटहरी', 'अबाबील', 'शुतुरमुर्ग', 'राजहंस', 'मुर्गाबी']
-      },
-      {
-        name: 'फल',
-        words: ['संतरा', 'अंगूर', 'अनार', 'अमरूद', 'पपीता', 'तरबूज़', 'खरबूजा', 'नारियल', 'अनानास', 'जामुन',
-          'नाशपाती', 'शरीफा', 'खजूर', 'इमली', 'कटहल', 'मौसमी', 'शहतूत', 'सिंघाड़ा', 'अंजीर', 'आलूबुखारा']
-      },
-      {
-        name: 'मौसम',
-        words: ['बारिश', 'बादल', 'बिजली', 'तूफ़ान', 'सावन', 'गरमी', 'सरदी', 'कोहरा', 'बरसात', 'इंद्रधनुष',
-          'मानसून', 'बसंत', 'पतझड़', 'बौछार', 'फुहार', 'उमस', 'चाँदनी', 'शीतलहर', 'ठंडक', 'आसमान']
-      },
-      {
-        name: 'परिवार',
-        words: ['परिवार', 'बहन', 'भतीजा', 'भतीजी', 'भानजा', 'दामाद', 'ससुर', 'देवर', 'ननद', 'जेठानी',
-          'देवरानी', 'ससुराल', 'मायका', 'रिश्तेदार', 'बुज़ुर्ग', 'आशीर्वाद', 'मेहमान', 'दादाजी', 'नानाजी', 'बचपन']
-      },
-      {
-        name: 'संगीत',
-        words: ['सितार', 'तबला', 'बाँसुरी', 'हारमोनियम', 'ढोलक', 'शहनाई', 'सारंगी', 'भजन', 'कीर्तन', 'गायक',
-          'संगीत', 'घुँघरू', 'मंजीरा', 'कव्वाली', 'ग़ज़ल', 'लोकगीत', 'सरगम', 'आलाप', 'तानपूरा', 'संतूर',
-          'पखावज', 'नगाड़ा', 'रेडियो']
-      },
-      {
-        name: 'यात्रा',
-        words: ['रेलगाड़ी', 'स्टेशन', 'टिकट', 'सामान', 'पहाड़', 'समुद्र', 'बाज़ार', 'होटल', 'जहाज़', 'सड़क',
-          'तस्वीर', 'मुसाफ़िर', 'सराय', 'झरना', 'रेगिस्तान', 'जंगल', 'महल', 'मीनार', 'सफ़र', 'बंदरगाह',
-          'किनारा']
-      },
-      {
-        name: 'कपड़े',
-        words: ['पजामा', 'दुपट्टा', 'पगड़ी', 'चुनरी', 'शेरवानी', 'सलवार', 'कमीज़', 'लहँगा', 'चप्पल', 'स्वेटर',
-          'रूमाल', 'बटन', 'दस्ताने', 'मफ़लर', 'अँगोछा', 'घाघरा', 'ओढ़नी', 'अचकन', 'बनियान', 'पतलून',
-          'जैकेट']
-      }
+      { name: 'फल', icon: '🥭', words: ['अमरूद', 'अंगूर', 'संतरा', 'पपीता', 'नारियल', 'तरबूज़', 'अनार', 'खजूर', 'जामुन',
+        'नाशपाती', 'अनानास', 'खरबूजा', 'शरीफा', 'मौसमी'] },
+      { name: 'खाना', icon: '🍛', words: ['पराठा', 'चावल', 'समोसा', 'जलेबी', 'कचौरी', 'पकौड़ा', 'खिचड़ी', 'हलवा',
+        'रसगुल्ला', 'अचार', 'चटनी', 'पापड़', 'मिठाई', 'बिरयानी', 'दलिया'] },
+      { name: 'परिवार', icon: '👪', words: ['परिवार', 'दादाजी', 'दादीजी', 'नानाजी', 'नानीजी', 'माताजी', 'पिताजी', 'बहन',
+        'भतीजा', 'भतीजी', 'दामाद', 'ससुराल', 'मेहमान', 'बचपन'] },
+      { name: 'घर', icon: '🏠', words: ['दरवाज़ा', 'खिड़की', 'कमरा', 'पलंग', 'तकिया', 'कुरसी', 'चादर', 'आँगन', 'रसोई',
+        'बरतन', 'छतरी', 'दीवार', 'अलमारी'] },
+      { name: 'जानवर', icon: '🐘', words: ['बंदर', 'बकरी', 'खरगोश', 'हिरन', 'कछुआ', 'गिलहरी', 'मगरमच्छ', 'मेंढक',
+        'बछड़ा', 'तेंदुआ', 'गिरगिट', 'चीतल'] },
+      { name: 'पक्षी', icon: '🦜', words: ['कबूतर', 'चिड़िया', 'कोयल', 'बुलबुल', 'बगुला', 'गौरैया', 'बतख', 'सारस',
+        'मुरगा', 'मुरगी', 'तीतर', 'नीलकंठ'] },
+      { name: 'त्योहार', icon: '🎆', words: ['दिवाली', 'दीपक', 'मिठाई', 'रंगोली', 'पतंग', 'दशहरा', 'लोहड़ी', 'आरती',
+        'उपहार', 'फुलझड़ी', 'पटाखे', 'गुलाल', 'पिचकारी', 'राखियाँ'] },
+      { name: 'रंग', icon: '🎨', words: ['गुलाबी', 'बैंगनी', 'नारंगी', 'सफ़ेद', 'आसमानी', 'सुनहरा', 'केसरिया', 'जामुनी',
+        'चमकीला', 'रंगीन'] },
+      { name: 'मौसम', icon: '☀️', words: ['बारिश', 'बादल', 'बिजली', 'गरमी', 'सरदी', 'कोहरा', 'बरसात', 'सावन', 'बसंत',
+        'ठंडक', 'तूफ़ान', 'आसमान', 'सूरज'] },
+      { name: 'कपड़े', icon: '👗', words: ['कुरता', 'पजामा', 'दुपट्टा', 'स्वेटर', 'चप्पल', 'रूमाल', 'कमीज़', 'सलवार',
+        'पगड़ी', 'मफ़लर', 'बनियान', 'चुनरी'] }
     ]
   };
 })(window.SG);

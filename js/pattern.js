@@ -31,9 +31,9 @@
 
   // `from`/`to`: the first and the longest pattern. `on`/`off`: how long each pad stays lit, and the pause after it.
   const LEVELS = {
-    easy: { pads: 4, from: 2, to: 5, on: 900, off: 400 },
-    medium: { pads: 4, from: 3, to: 7, on: 750, off: 350 },
-    hard: { pads: 6, from: 3, to: 7, on: 700, off: 350 }
+    easy: { pads: 4, from: 2, to: 5, on: 1100, off: 500 },
+    medium: { pads: 4, from: 3, to: 6, on: 950, off: 450 },
+    hard: { pads: 6, from: 3, to: 7, on: 850, off: 400 }
   };
 
   const FIRST_DELAY_MS = 600;  // a moment after pressing Watch, before the first pad lights
@@ -62,7 +62,9 @@
       return i;
     }
 
-    function grow() {
+    // A brand-new pattern of `length` pads (not the last one with one more on the end)
+    function fresh() {
+      sequence = [];
       while (sequence.length < length) sequence.push(randomPad(sequence[sequence.length - 1]));
     }
 
@@ -123,11 +125,16 @@
       for (let i = 0; i < length; i++) dotsEl.appendChild(el('span', { class: i < entered ? 'on' : '' }));
     }
 
-    function light(i, ms) {
+    // `step`: while the pattern is shown, each pad also shows which step it is (1, 2, 3...)
+    function light(i, ms, step) {
       const pad = padEls[i];
       pad.classList.add('lit');
+      if (step) pad.setAttribute('data-step', step);
       SG.sound.pad(pads[i].freq);
-      timers.later(function () { pad.classList.remove('lit'); }, ms);
+      timers.later(function () {
+        pad.classList.remove('lit');
+        pad.removeAttribute('data-step');
+      }, ms);
     }
 
     function setWatch(text, show) {
@@ -149,8 +156,11 @@
       statusEl.textContent = t('pt.watching');
 
       let at = FIRST_DELAY_MS;
-      sequence.forEach(function (i) {
-        timers.later(function () { light(i, level.on); }, at);
+      sequence.forEach(function (i, k) {
+        timers.later(function () {
+          light(i, level.on, k + 1);
+          dotsEl.children[k].classList.add('shown'); // the row of dots counts the steps as they are shown
+        }, at);
         at += level.on + level.off;
       });
       timers.later(function () {
@@ -203,7 +213,7 @@
         return;
       }
       length++;
-      grow();
+      fresh();
       phase = 'ready';
       setWatch(t('pt.watch'), true);
       statusEl.textContent = t('pt.roundDone', length);
@@ -221,8 +231,7 @@
     function newGame() {
       timers.clear();
       length = level.from;
-      sequence = [];
-      grow();
+      fresh();
       entered = 0;
       phase = 'ready';
       slipped = false;

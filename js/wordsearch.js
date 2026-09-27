@@ -15,9 +15,9 @@
   const BACKWARD = FORWARD.map(function (d) { return [0 - d[0], 0 - d[1]]; });
 
   const LEVELS = {
-    easy: { size: 8, count: 6, dirs: [RIGHT, DOWN] },
-    medium: { size: 10, count: 8, dirs: FORWARD },
-    hard: { size: 12, count: 10, dirs: FORWARD.concat(BACKWARD) }
+    easy: { size: 8, count: 5, dirs: [RIGHT, DOWN] },
+    medium: { size: 10, count: 6, dirs: FORWARD },
+    hard: { size: 12, count: 8, dirs: FORWARD.concat(BACKWARD) }
   };
 
   // Highlighter colours. The fill is light enough to keep dark letters easy to read (all 6.9:1
@@ -62,7 +62,7 @@
   // above the 19px reading floor; aksharas are wider than Latin capitals, so they need more room.
   const SCRIPTS = {
     en: {
-      minWord: 4, minCell: 34,
+      minWord: 3, minCell: 34,
       split: function (text) { return text.split(''); },
       letterScale: function (cell) { return cell < 40 ? 0.62 : 0.58; },
       filler: function () { return FILL[SG.rand(FILL.length)]; }
@@ -151,7 +151,7 @@
       }
       placements.sort(function (a, b) { return a.word < b.word ? -1 : 1; });
       lastTheme = theme.name;
-      return { theme: theme.name, grid: grid, placements: placements };
+      return { theme: theme.name, icon: theme.icon, grid: grid, placements: placements };
     }
     throw new Error('Could not build a word search puzzle');
   }
@@ -238,7 +238,8 @@
       }));
 
       const info = el('section', { class: 'ws-info', 'aria-label': t('ws.list') }, [
-        el('p', { class: 'ws-topic' }, [t('ws.topic') + ': ', el('strong', { text: puzzle.theme })]),
+        // The topic as a picture and one word - no label to read first
+        el('p', { class: 'ws-topic' }, [el('span', { class: 'ws-topic-icon', 'aria-hidden': 'true', text: puzzle.icon || '' }), el('strong', { text: puzzle.theme })]),
         list
       ]);
 
@@ -288,11 +289,7 @@
       statusEl = el('p', { class: 'status ws-status', role: 'status' });
       const hintBtn = SG.iconButton('btn btn-secondary ws-hint', 'bulb', t('ws.hint'));
       SG.onTap(hintBtn, hint);
-      foot = el('section', { class: 'ws-foot' }, [
-        statusEl,
-        hintBtn,
-        el('p', { class: 'ws-tip', text: t('ws.tip') })
-      ]);
+      foot = el('section', { class: 'ws-foot' }, [statusEl, hintBtn]);
 
       layoutEl = el('div', { class: 'ws-layout' }, [info, wrap, foot]);
       stage.appendChild(layoutEl);
