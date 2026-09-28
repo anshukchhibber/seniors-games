@@ -10,7 +10,7 @@
   'use strict';
 
   // ----- Settings -----
-  const WEBSITE_ID = ''; // from Umami: Settings > Websites > Edit > Website ID. Empty = off.
+  const WEBSITE_ID = 'fc4b0259-c4e1-40b1-858d-c335f700be58'; // from Umami: Settings > Websites > Edit > Website ID. Empty = off.
   const SCRIPT = 'https://cloud.umami.is/script.js';
   const DOMAIN = 'anshukchhibber.github.io';
 
