@@ -49,6 +49,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // ONLY=pattern,sorting node tests/playtest.mjs   runs just those parts (see the want(...) blocks below).
 const want = part => !process.env.ONLY || process.env.ONLY.split(',').includes(part);
 const results = [];
+const requested = []; // every address the page asks for (to prove no usage counts leave a test)
 const problems = [];
 function check(name, ok, extra) {
   results.push((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  -> ' + extra : ''));
@@ -86,6 +87,8 @@ ws.addEventListener('message', ev => {
     problems.push('EXCEPTION: ' + (msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text));
   } else if (msg.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(msg.params.type)) {
     problems.push('CONSOLE ' + msg.params.type + ': ' + msg.params.args.map(a => a.value ?? a.description).join(' '));
+  } else if (msg.method === 'Network.requestWillBeSent') {
+    requested.push(msg.params.request.url);
   } else if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') {
     problems.push('LOG: ' + msg.params.entry.text + ' ' + (msg.params.entry.url || ''));
   }
@@ -182,6 +185,7 @@ const foundCount = () => js(`document.querySelectorAll('.ws-word.found').length`
 try {
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Network.enable');
   await send('Log.enable');
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
 
@@ -1290,6 +1294,47 @@ try {
       await shot('134-ch-phone');
     }
     await viewport(1280, 800, false);
+  }
+
+  // ---------- Usage counts (analytics) ----------
+  if (want('analytics')) {
+    await viewport(1280, 800, false);
+    await go('#/');
+    // One visit: a game with a slip, finished; another left half way; a setting changed
+    await js(`location.hash = '#/tilematch/easy'`); await sleep(300);
+    {
+      const tiles = await js(`[...document.querySelectorAll('.tm-tile')].map(x => { const r = x.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, face: x.querySelector('.tm-face').textContent }; })`);
+      const by = {};
+      tiles.forEach((t, i) => (by[t.face] = by[t.face] || []).push(i));
+      const sets = Object.values(by);
+      await click(tiles[sets[0][0]].x, tiles[sets[0][0]].y);
+      await click(tiles[sets[1][0]].x, tiles[sets[1][0]].y); // not the same: a miss
+      for (const set of sets) for (const k of set) await click(tiles[k].x, tiles[k].y);
+      await sleep(2300);
+    }
+    await js(`location.hash = '#/numbers/easy'`); await sleep(300);
+    await js(`document.querySelector('.nh-hint').click()`);
+    await js(`[...document.querySelectorAll('.nh-tile')].find(b => b.textContent === '1').click()`);
+    await js(`location.hash = '#/settings'`); await sleep(300);
+    await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'Left').click()`);
+    await js(`[...document.querySelectorAll('.chooser button')].find(b => b.textContent === 'Right').click()`);
+    const events = await js(`SG.track.log.map(e => e.kind === 'page' ? 'page ' + e.url : e.name + ' ' + JSON.stringify(e.data))`);
+    const find = (name, test) => events.find(e => e.startsWith(name + ' ') && test(JSON.parse(e.slice(name.length + 1))));
+    check('analytics: a visit is recorded as pages and events', events.some(e => e === 'page /#/tilematch/easy') && !!find('app-open', d => d.lang === 'en' && d.screen === 'computer'), events.join(' | '));
+    check('analytics: a finished game, with its time and slips', !!find('game-start', d => d.game === 'tilematch' && d.level === 'easy') && !!find('game-finish', d => d.game === 'tilematch' && d.misses === 1 && d.seconds >= 0), events.join(' | '));
+    check('analytics: a game left half way, with its hint', !!find('game-leave', d => d.game === 'numbers' && d.progress === true && d.hints === 1), events.join(' | '));
+    check('analytics: settings changes', !!find('settings', d => d.what === 'hand' && d.value === 'left'));
+    check('analytics: the settings page says what is counted', (await js(`document.querySelector('.settings-note').textContent`)).startsWith('Anonymous use counts'));
+    // Offline: events wait on the tablet, then go when it is back online
+    await js(`window.sent = []; SG.track.testMode({ track: (name, data) => window.sent.push(typeof name === 'function' ? 'page' : name) })`);
+    await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await js(`SG.track.event('while-offline', {})`);
+    const waiting = await js(`JSON.parse(localStorage.getItem('sg.track.queue') || '[]').map(e => e.name)`);
+    await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await js(`SG.track.flush()`);
+    check('analytics: made offline, sent once back online', waiting.includes('while-offline') && (await js(`window.sent.includes('while-offline') && JSON.parse(localStorage.getItem('sg.track.queue') || '[]').length === 0`)), JSON.stringify(waiting));
+    await js(`SG.track.testMode(null)`);
+    check('analytics: nothing is ever sent from a test machine', !requested.some(u => /umami/i.test(u)), requested.filter(u => /umami/i.test(u)).join());
   }
 
   // ---------- Every screen fits on the screen: no scrolling, ever ----------

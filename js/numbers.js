@@ -133,6 +133,7 @@
         // Not the next number. Nothing is marked wrong - the player is simply told what they
         // pressed and what to look for, in the same calm voice as everything else.
         statusEl.textContent = t('nh.other', tile.n, next);
+        SG.track.count('miss');
         SG.sound.tap();
         return;
       }
@@ -160,6 +161,7 @@
     // Circles the next number. Like every hint in the app it simply stays until it is used.
     function hint() {
       if (done) return;
+      SG.track.count('hint');
       hinted = tiles[next];
       hinted.button.classList.remove('hinting');
       hinted.button.getBoundingClientRect(); // restart the three gentle pulses if asked again

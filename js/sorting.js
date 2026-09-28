@@ -277,6 +277,7 @@
         card.tries++;
         moveCard(card, 0, 0, 0, true); // it simply comes back...
         SG.sound.nope();
+        SG.track.count('miss');
         // ...and it is plain to see: the basket shakes its head with a big cross on it, and the
         // picture gives a little wobble once it is back in its place.
         if (!SG.reducedMotion()) {
@@ -293,6 +294,7 @@
           const right = baskets.filter(function (b) { return b.key === card.entry.group; })[0];
           right.button.classList.add('so-hint');
           statusEl.textContent = t('so.reveal', name(item), groupName(right.key));
+          SG.track.count('hint');
         }
         return;
       }

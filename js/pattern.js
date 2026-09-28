@@ -194,6 +194,7 @@
         // Not a failure - just an invitation to see it again.
         slipped = true;
         statusEl.textContent = t('pt.slip');
+        SG.track.count('miss');
         return;
       }
 

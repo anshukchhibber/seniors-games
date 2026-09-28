@@ -514,6 +514,7 @@
     // Nothing on screen ever changes on a timer.
     function hint() {
       if (done) return;
+      SG.track.count('hint');
       const p = puzzle.placements.filter(function (x) { return !x.found; })[0];
       if (!p) return;
       if (hinted) wordEls[hinted.word].classList.remove('hinting');

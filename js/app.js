@@ -112,6 +112,7 @@
     // Each language is written in its own script, so its readers can find it whatever is showing now.
     const language = chooser(t('language'), SG.languages, SG.lang, function (value) {
       SG.setLang(value);
+      SG.track.event('settings', { what: 'language', value: value });
       route(); // redraw this page in the new language
     });
 
@@ -131,15 +132,25 @@
 
     const sound = chooser(t('sound'), [{ value: 'on', text: t('on') }, { value: 'off', text: t('off') }],
       SG.sound.isOn() ? 'on' : 'off',
-      function (value) { if ((value === 'on') !== SG.sound.isOn()) SG.sound.toggle(); });
+      function (value) {
+        if ((value === 'on') !== SG.sound.isOn()) SG.sound.toggle();
+        SG.track.event('settings', { what: 'sound', value: value });
+      });
 
     // Puts the word list and buttons on the same side as the playing hand,
     // so nobody has to reach across the game (and brush it) to press Hint.
     const hand = chooser(t('hand'), [{ value: 'left', text: t('left') }, { value: 'right', text: t('right') }],
       SG.store.get('hand', 'right'),
-      function (value) { SG.store.set('hand', value); applyHand(); });
+      function (value) {
+        SG.store.set('hand', value);
+        applyHand();
+        SG.track.event('settings', { what: 'hand', value: value });
+      });
 
-    view.appendChild(el('div', { class: 'screen', 'data-fit': '2' }, [bar(t('settings')), el('div', { class: 'settings' }, [sound, hand])]));
+    view.appendChild(el('div', { class: 'screen', 'data-fit': '2' }, [
+      bar(t('settings')),
+      el('div', { class: 'settings' }, [sound, hand, el('p', { class: 'settings-note', text: t('settings.privacy') })])
+    ]));
   }
 
   // How to play: a picture with a hand acting out the move, three short lines, and one big button.
@@ -153,6 +164,7 @@
       : SG.iconButton('btn btn-lg intro-start', 'back', t('back'));
     SG.onTap(button, function () {
       if (mode === 'first') {
+        SG.track.event('first-time', { game: key });
         seenNow[key] = true;
         SG.store.set('seen.' + key, '1');
         route(); // the same address now plays the game
@@ -182,6 +194,8 @@
     }
     SG.onTap(keep, backToGame);
     SG.onTap(fresh, function () {
+      SG.track.gameLeave(true);
+      SG.track.gameStart(live.key, live.levelKey);
       live.game.newGame(); // the same game, cleared (Colouring Book: the picture made white again)
       backToGame();
     });
@@ -243,11 +257,13 @@
     view.appendChild(top);
     view.appendChild(stage); // must be in the page before mounting so the game can measure the screen
     current = { key: key, levelKey: levelKey, hash: location.hash, top: top, stage: stage, levels: null };
+    SG.track.gameStart(key, levelKey);
     current.game = game.mount(stage, levelKey);
   }
 
   function destroyCurrent() {
     if (!current) return;
+    SG.track.gameLeave(!!current.game.progress()); // counted only if it was not finished
     current.game.destroy();
     current = null;
   }
@@ -347,6 +363,7 @@
   });
 
   function settle() {
+    SG.track.page();
     window.scrollTo(0, 0);
     fitScreen();
     // Tell screen readers a new screen has opened (but leave focus alone on first load).

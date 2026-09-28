@@ -258,6 +258,7 @@
       if (i !== keyIndex(current())) {
         // Not the lit key: it simply plays its note, and the lit key waits
         statusEl.textContent = t('hm.other');
+        SG.track.count('miss');
         return;
       }
       pos++;

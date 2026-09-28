@@ -151,6 +151,7 @@
         picked = [];
         SG.sound.tap();
         statusEl.textContent = t('tm.notSame');
+        SG.track.count('miss');
         return;
       }
 

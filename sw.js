@@ -21,6 +21,7 @@ const FILES = [
   'js/i18n.js',
   'js/sound.js',
   'js/photo.js',
+  'js/analytics.js',
   'js/words.js',
   'js/wordsearch.js',
   'js/tilematch.js',

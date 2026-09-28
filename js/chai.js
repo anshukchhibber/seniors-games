@@ -104,12 +104,14 @@
         // Not yet: a little shake, and it stays where it is
         misses++;
         SG.sound.nope();
+        SG.track.count('miss');
         if (!SG.reducedMotion()) card.button.classList.add('ch-nope');
         if (misses >= 2) {
           const n = next().button;
           n.getBoundingClientRect(); // restart the hand's three bobs
           n.classList.add('ch-hint');
           statusEl.textContent = t('ch.hint');
+          SG.track.count('hint');
         } else {
           statusEl.textContent = t('ch.notYet');
         }

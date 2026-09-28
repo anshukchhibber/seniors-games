@@ -68,6 +68,26 @@ Once it has been opened online, it keeps working offline (`sw.js`). While online
 the newest version, so there is nothing to bump when you change a file - but a **new** file must be
 added to the `FILES` list in `sw.js` (the playtest checks this).
 
+## Analytics (anonymous usage counts)
+
+`js/analytics.js` sends anonymous counts to [Umami](https://umami.is): how many visits, and for each
+visit a timeline - which screens, which games and levels, how long, how many slips and hints, photos
+taken, settings changed. No cookies, no names, no consent popup. The Settings page says so in one line.
+
+- **Turn it on:** create a free account at cloud.umami.is, add the website
+  `anshukchhibber.github.io`, and put its Website ID in `WEBSITE_ID` at the top of `js/analytics.js`.
+  Empty = off.
+- **Where to look:** Umami → *Sessions* (each visit, event by event), *Events* (totals, e.g. how
+  often each game is finished), *Realtime*.
+- It only runs on the live site: opened from the folder, on another machine, or in the playtest,
+  nothing is sent (`ONLY=analytics` checks this).
+- **Offline:** events wait on the tablet and are sent when it is back online; Umami shows them at
+  the time they were sent.
+- Events: `app-open` (language, installed or not, phone/tablet/computer), `first-time`,
+  `game-start`, `game-finish` (seconds, misses, hints), `game-leave` (seconds, whether a game was
+  under way), `photo` (taken / saved / no camera), `settings` (language, sound, hand).
+  To count a new kind of slip or hint in a game, call `SG.track.count('miss')` or `('hint')`.
+
 ## Design rules (please keep these when adding games)
 
 - **As few taps and words as possible before playing.** A game is one tap from home. Nothing

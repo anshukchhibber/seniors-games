@@ -247,7 +247,8 @@
       'photo.here': 'Here is your photo!',
       'photo.saved': 'Saved!',
       'photo.alt': 'Your photo with your picture',
-      'photo.noCamera': 'The camera is not available. You can still save the picture.'
+      'photo.noCamera': 'The camera is not available. You can still save the picture.',
+      'settings.privacy': 'Anonymous use counts help improve the games. No names are kept.'
     },
 
     hi: {
@@ -490,7 +491,8 @@
       'photo.here': 'यह रही आपकी फ़ोटो!',
       'photo.saved': 'हो गया!',
       'photo.alt': 'आपकी तस्वीर के साथ आपकी फ़ोटो',
-      'photo.noCamera': 'कैमरा नहीं मिला। तस्वीर फिर भी सहेज सकते हैं।'
+      'photo.noCamera': 'कैमरा नहीं मिला। तस्वीर फिर भी सहेज सकते हैं।',
+      'settings.privacy': 'बिना नाम की गिनती से खेल बेहतर बनते हैं। कोई नाम नहीं रखा जाता।'
     }
   };
 

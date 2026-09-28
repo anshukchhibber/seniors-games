@@ -68,6 +68,7 @@
 
     function noCamera() {
       statusEl.textContent = t('photo.noCamera');
+      SG.track.event('photo', { game: SG.track.game() || '', step: 'no-camera' });
       video.hidden = true;
       frame.classList.add('pb-art-only');
       take.hidden = true;
@@ -114,6 +115,7 @@
         take.hidden = true;
         save.hidden = again.hidden = false;
         statusEl.textContent = t('photo.here');
+        SG.track.event('photo', { game: SG.track.game() || '', step: 'taken' });
         SG.sound.win();
       }, 'image/png');
     }
@@ -144,7 +146,10 @@
 
     // Keep it: the tablet's own "share" (to the photo gallery, or to the family), or a download
     SG.onTap(save, function () {
-      const done = function () { statusEl.textContent = t('photo.saved'); };
+      const done = function () {
+        statusEl.textContent = t('photo.saved');
+        SG.track.event('photo', { game: SG.track.game() || '', step: 'saved' });
+      };
       if (!blob) { // no camera: the picture on its own
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 800;

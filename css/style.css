@@ -385,6 +385,8 @@ a:focus:not(:focus-visible), button:focus:not(:focus-visible) { outline: none; }
 .settings .chooser-label { font-size: var(--text-title); }
 .fit-1 .settings { flex-direction: row; flex-wrap: wrap; gap: var(--space-4) var(--space-8); padding-bottom: 0; }
 .fit-2 .settings .chooser { flex-direction: row; }
+.settings-note { max-width: 520px; color: var(--color-ink-soft); text-align: center; }
+.fit-1 .settings-note { flex-basis: 100%; }
 
 /* ---------- How to play (the first time a game is opened, and from its level page) ---------- */
 

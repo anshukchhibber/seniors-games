@@ -339,8 +339,12 @@ window.SG = window.SG || {};
   SG.winPanel = function (message, trophies, onAgain, levelsHref, options) {
     const el = SG.el;
     options = options || {};
+    SG.track.gameFinish(); // counted: this game was finished
     const again = SG.iconButton('btn btn-lg', options.againIcon || 'again', options.again || SG.t('playAgain'));
-    SG.onTap(again, onAgain);
+    SG.onTap(again, function (e) {
+      SG.track.again();
+      onAgain(e);
+    });
     const actions = [again];
     // Something the player made: a photo with it
     if (options.photo) {
